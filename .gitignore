@@ -1,0 +1,22 @@
+
+# Machine-specific files
+*.local
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system clutter
+.vscode/
+.DS_Store
+Thumbs.db
+*~
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Private keys and credentials
+*.pem
+*.key
+id_rsa
+id_ed25519
