@@ -2,9 +2,9 @@
 
 **An Arch Linux desktop, forged after dark.**
 
-Moonforge is an Arch Linux dotfiles project, built incrementally around Hyprland, Quickshell and carefully tuned keyboard-driven workflow.
+Moonforge is an Arch Linux dotfiles project built incrementally around Hyprland, Quickshell, and a carefully tuned keyboard-driven workflow.
 
-Goal of the project is a  desktop that feels cohesive, stays lightweight, and remains understandable and maintainable.
+The goal is a cohesive, lightweight desktop that remains understandable, maintainable, and easy to reproduce.
 
 ## ✦ The stack
 
@@ -20,13 +20,41 @@ Goal of the project is a  desktop that feels cohesive, stays lightweight, and re
 
 ## ◈ Design language
 
-Moonforge uses a moonlit Catppuccin Mocha-inspired palette, soft blue and lavender accents, restrained animations, and a minimal layout.
+Moonforge uses a moonlit, Catppuccin Mocha-inspired palette, with soft blue and lavender accents, restrained animations, and a minimal layout.
 
-## 🚧 Project status
+- Background: `#1e1e2e`
+- Surface: `#313244`
+- Blue accent: `#89b4fa`
+- Lavender accent: `#cba6f7`
+- Main text: `#cdd6f4`
 
-**Work in progress.**
+## 📁 Repository layout
 
-The configuration is being developed and tested in stages. Components will be documented as they become usable.
+- `hypr/` — Hyprland configuration
+- `quickshell/` — custom shell and bar
+- `fuzzel/` — application launcher theme
+- `kitty/` — terminal color theme
+- `wallpapers/` — Moonforge wallpaper
+
+## 🚀 Installation status
+
+Moonforge is a work in progress. Its components are being configured and tested individually.
+
+The current setup includes:
+
+- Hyprland keyboard bindings and window layout settings
+- Quickshell desktop bar
+- Fuzzel launcher theme, bound to `Super + Space`
+- Kitty color theme
+- `awww` wallpaper configuration
+
+### Applying configurations
+
+**Back up existing configuration files before replacing them.** The files in this repository are tailored to the current setup and may need adjustment on another machine.
+
+The configuration files are maintained in the repository separately from their active copies under `~/.config/`. Copy or link them into place only after reviewing the relevant settings.
+
+The wallpaper is currently stored in `wallpapers/moonforge_wallpaper.jpg`.
 
 ## 🛡️ Philosophy
 
@@ -35,16 +63,11 @@ The configuration is being developed and tested in stages. Components will be do
 - Keep configurations readable and version-controlled.
 - Document changes and installation steps.
 - Never commit credentials, private keys, or personal data.
+- Avoid interfering with other desktop environments, including KDE Plasma.
 
-## 📁 Repository layout
+## 🚧 Project status
 
-- `hypr/` — Hyprland configuration
-- `quickshell/` — custom shell and bar
-- `fuzzel/` — launcher configuration
-- `kitty/` — terminal configuration
-- `wallpapers/` — wallpaper setup
-- `scripts/` — setup and utility scripts
-- `docs/` — project notes and guides
+**Work in progress.** Installation automation and additional desktop components will be documented as they become stable.
 
 ---
 
