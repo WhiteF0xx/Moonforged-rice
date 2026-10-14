@@ -12,21 +12,27 @@ ShellRoot {
             right: true
         }
 
-        implicitHeight: 40
+        implicitHeight: 44
         color: "#1e1e2e"
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
-            spacing: 12
+            anchors.leftMargin: 14
+            anchors.rightMargin: 14
+            spacing: 10
 
+            // Moonforge launcher
             Rectangle {
-                implicitWidth: 34
-                implicitHeight: 28
-                radius: 7
+                implicitWidth: 38
+                implicitHeight: 30
+                radius: 8
+
                 color: launcherMouse.containsMouse
                     ? "#45475a" : "#313244"
+
+                Behavior on color {
+                    ColorAnimation { duration: 120 }
+                }
 
                 Text {
                     anchors.centerIn: parent
@@ -39,10 +45,16 @@ ShellRoot {
                     id: launcherMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    onClicked: Quickshell.execDetached(["fuzzel"])
+
+                    onClicked: Quickshell.execDetached([
+                        "fuzzel",
+                        "--config",
+                        "/home/WhiteFox/.config/moonforge/fuzzel.ini"
+                    ])
                 }
             }
 
+            // Workspace indicators
             RowLayout {
                 spacing: 5
 
@@ -56,13 +68,17 @@ ShellRoot {
                             Hyprland.focusedWorkspace !== null
                             && Hyprland.focusedWorkspace.id === index + 1
 
-                        implicitWidth: 32
-                        implicitHeight: 28
-                        radius: 6
+                        implicitWidth: 34
+                        implicitHeight: 30
+                        radius: 8
 
                         color: isActive ? "#89b4fa"
                             : workspaceMouse.containsMouse
                                 ? "#45475a" : "#313244"
+
+                        Behavior on color {
+                            ColorAnimation { duration: 120 }
+                        }
 
                         Text {
                             anchors.centerIn: parent
@@ -78,7 +94,9 @@ ShellRoot {
                             hoverEnabled: true
 
                             onClicked: Quickshell.execDetached([
-                                "hyprctl", "dispatch", "workspace",
+                                "hyprctl",
+                                "dispatch",
+                                "workspace",
                                 String(index + 1)
                             ])
                         }
@@ -86,28 +104,59 @@ ShellRoot {
                 }
             }
 
+            // Flexible space separates controls from status
             Item {
                 Layout.fillWidth: true
             }
 
-            Text {
-                Layout.maximumWidth: 450
+            // Focused window title
+            Rectangle {
                 Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: Math.min(420, Math.max(180, titleText.implicitWidth + 24))
+                Layout.minimumWidth: 180
+                Layout.maximumWidth: 420
+                implicitHeight: 30
 
-                text: Hyprland.activeToplevel
-                    ? Hyprland.activeToplevel.title : "Desktop"
+                radius: 8
+                color: "#313244"
+                border.width: 1
+                border.color: "#45475a"
 
-                color: "#a6adc8"
-                font.pixelSize: 12
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignRight
+                Text {
+                    id: titleText
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    verticalAlignment: Text.AlignVCenter
+
+                    text: Hyprland.activeToplevel
+                        ? Hyprland.activeToplevel.title : "Desktop"
+
+                    color: "#a6adc8"
+                    font.pixelSize: 12
+                    elide: Text.ElideRight
+                }
             }
 
-            Text {
-                id: clock
-                color: "#cdd6f4"
-                font.pixelSize: 13
-                text: Qt.formatDateTime(new Date(), "ddd dd MMM  hh:mm")
+            // Clock
+            Rectangle {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: clockText.implicitWidth + 24
+                implicitHeight: 30
+
+                radius: 8
+                color: "#313244"
+                border.width: 1
+                border.color: "#45475a"
+
+                Text {
+                    id: clockText
+                    anchors.centerIn: parent
+
+                    color: "#cdd6f4"
+                    font.pixelSize: 13
+                    text: Qt.formatDateTime(new Date(), "ddd dd MMM  hh:mm")
+                }
             }
 
             Timer {
@@ -115,7 +164,7 @@ ShellRoot {
                 running: true
                 repeat: true
 
-                onTriggered: clock.text =
+                onTriggered: clockText.text =
                     Qt.formatDateTime(new Date(), "ddd dd MMM  hh:mm")
             }
         }
