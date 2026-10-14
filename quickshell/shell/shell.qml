@@ -1,11 +1,16 @@
 
+//@ pragma UseQApplication
+
 import Quickshell
 import Quickshell.Hyprland
 import QtQuick
 import QtQuick.Layouts
+import Quickshell.Services.SystemTray
 
 ShellRoot {
     PanelWindow {
+        id: barWindow
+
         anchors {
             top: true
             left: true
@@ -135,6 +140,95 @@ ShellRoot {
                     color: "#a6adc8"
                     font.pixelSize: 12
                     elide: Text.ElideRight
+                }
+            }
+
+            //System Tray Capsule
+            Rectangle {
+                id: systemTrayCapsule
+
+                visible: SystemTray.items.values.length > 0
+
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: trayLayout.implicitWidth + 16
+                implicitHeight: 30
+
+                radius: 8
+                color: "#313244"
+                border.width: 1
+                border.color: "#45475a"
+
+                RowLayout {
+                    id: trayLayout
+
+                    anchors.centerIn: parent
+                    spacing: 8
+
+                    Repeater {
+                        model: SystemTray.items
+
+                        delegate: Item {
+                            id: trayEntry
+
+                            required property var modelData
+
+                            implicitWidth: 18
+                            implicitHeight: 18
+
+                            Image {
+                                anchors.fill: parent
+
+                                source: trayEntry.modelData.icon
+                                sourceSize.width: 18
+                                sourceSize.height: 18
+                                fillMode: Image.PreserveAspectFit
+                                smooth: true
+                            }
+
+                                                        
+                            MouseArea {
+                                id: trayMouse
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+
+                                acceptedButtons: Qt.LeftButton
+                                    | Qt.MiddleButton
+                                    | Qt.RightButton
+
+                                onClicked: mouse => {
+                                    const item = trayEntry.modelData;
+
+                                    if (mouse.button === Qt.LeftButton) {
+                                        if (item.onlyMenu)
+                                            openMenu();
+                                        else
+                                            item.activate();
+                                    } else if (mouse.button === Qt.MiddleButton) {
+                                        item.secondaryActivate();
+                                    } else if (mouse.button === Qt.RightButton) {
+                                        openMenu();
+                                    }
+                                }
+
+                                function openMenu() {
+                                    const item = trayEntry.modelData;
+
+                                    if (!item.hasMenu)
+                                        return;
+
+                                    const pos = trayEntry.mapToItem(
+                                        barWindow.contentItem,
+                                        0,
+                                        trayEntry.height
+                                    );
+
+                                    item.display(barWindow, pos.x, pos.y);
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
