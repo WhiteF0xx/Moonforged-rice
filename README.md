@@ -91,7 +91,7 @@ The roadmap is a living list; items may change as the desktop develops.
 
 ## 🚧 Project status
 
-**Work in progress.** Moonforge is being developed one component at a time. Features and installation instructions will be expanded as they become stable.
+**Work in progress.** Moonforge is being developed one component at a time. Features and **installation** instructions will be expanded as they become stable.
 
 ---
 
