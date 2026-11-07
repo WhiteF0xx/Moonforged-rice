@@ -80,7 +80,7 @@ The files in this repository are maintained separately from their active copies 
 
 The wallpaper is stored in `wallpapers/moonforge_wallpaper.jpg`.
 
-There is not yet a fully automated installation process; setup steps and dependencies will be documented as the project becomes more stable.
+See [INSTALL.md](INSTALL.md) for the manual installation guide. The configuration is being made more portable, but still requires review and testing on each machine.
 
 ## 🗺️ Roadmap
 
@@ -88,6 +88,7 @@ Planned additions and improvements, in no particular order:
 
 - [ ] Refine the Quickshell bar layout, animations, and responsive behavior.
 - [ ] Improve theme consistency across Fuzzel, Kitty, notifications, icons, and other desktop components.
+- [x] Remove machine-specific monitor, network-interface, home-directory, and wallpaper-path assumptions where practical.
 - [ ] Make wallpaper setup and startup more reliable.
 - [x] Add screenshots to the README.
 - [ ] Create installation scripts with dependency checks.
