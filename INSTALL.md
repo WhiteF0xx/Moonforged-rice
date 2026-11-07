@@ -190,7 +190,7 @@ Confirm that `awww-daemon` is running and that `~/.config/moonforge/wallpaper.jp
 
 ### Fuzzel does not open
 
-Run `fuzzel --config ~/.config/moonforge/fuzzel.ini` from a terminal. Check that `~/.config/fuzzel/fuzzel.ini` exists and that the configured icon theme is installed.
+Run `fuzzel` from a terminal. Check that `~/.config/fuzzel/fuzzel.ini` exists and that the configured icon theme is installed.
 
 ## 10. Updating Moonforge
 
