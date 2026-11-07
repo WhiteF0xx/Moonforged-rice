@@ -1,9 +1,31 @@
 #!/usr/bin/env bash
 #
 # Moonforge installer
-# Run from the cloned repository: ./install.sh
+# Run from the cloned repository: ./install.sh [--update|--help]
 #
 set -Eeuo pipefail
+
+MODE="install"
+
+case "${1:-}" in
+    "")
+        ;;
+    --update)
+        MODE="update"
+        ;;
+    --help|-h)
+        printf 'Usage: ./install.sh [--update|--help]\\n'
+        printf '  (no option)  Install Moonforge configuration.\\n'
+        printf '  --update     Pull the latest repository changes, then refresh configuration files.\\n'
+        printf '  --help       Show this help message.\\n'
+        exit 0
+        ;;
+    *)
+        printf '[Error] Unknown option: %s\\n' "$1" >&2
+        printf 'Run ./install.sh --help for usage.\\n' >&2
+        exit 2
+        ;;
+esac
 
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -62,12 +84,18 @@ install_file() {
 [[ -f /etc/arch-release ]] || error "Moonforge's installer currently supports Arch Linux only."
 [[ "$EUID" -ne 0 ]] || error "Do not run this installer with sudo. Run it as your normal user."
 
-for command in pacman; do
+for command in pacman git; do
     command -v "$command" >/dev/null 2>&1 || error "Required command not found: $command"
 done
 
 info "Repository: $REPO_DIR"
 info "Configuration directory: $CONFIG_DIR"
+
+if [[ "$MODE" == "update" ]]; then
+    [[ -d "$REPO_DIR/.git" ]] || error "Update mode requires a Git clone of Moonforge."
+    info "Pulling the latest Moonforge changes..."
+    git -C "$REPO_DIR" pull --ff-only || error "Git update failed. Check for local changes or branch divergence, then try again."
+fi
 
 if ask "Install/check the required official Arch packages with pacman?"; then
     sudo pacman -S --needed "${PACKAGES[@]}" || error "Package installation failed."
@@ -112,7 +140,11 @@ if command -v systemctl >/dev/null 2>&1 && ask "Enable NetworkManager now?"; the
     sudo systemctl enable --now NetworkManager || warn "Could not enable NetworkManager."
 fi
 
-info "Installation steps finished."
+if [[ "$MODE" == "update" ]]; then
+    info "Moonforge update steps finished."
+else
+    info "Installation steps finished."
+fi
 printf '\nNext steps:\n'
 printf '  1. Start or restart Quickshell with: qs\n'
 printf '  2. Check the Hyprland configuration and log out/in if you installed it for the first time.\n'
