@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
-BACKUP_DIR="$HOME/.config/moonforge/backups/$(date +%Y%m%d-%H%M%S)"
+BACKUP_DIR="$CONFIG_DIR/moonforge/backups/$(date +%Y%m%d-%H%M%S)"
 
 PACKAGES=(
     git
