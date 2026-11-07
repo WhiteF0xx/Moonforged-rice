@@ -26,16 +26,25 @@ ShellRoot {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.trim().split("\n")
-                const ethernet = lines.find(line => line.startsWith("enp4s0:"))
-                const wifi = lines.find(line => line.startsWith("wlp10s0f3u1i2:"))
+                const devices = text.trim().split("\n")
+                    .filter(line => line.length > 0)
+                    .map(line => line.split(":"))
 
-                if (ethernet && ethernet.split(":")[2] === "connected") {
+                // Detect any connected Ethernet or Wi-Fi device by type,
+                // rather than relying on machine-specific interface names.
+                const ethernet = devices.find(fields =>
+                    fields[1] === "ethernet" && fields[2] === "connected"
+                )
+                const wifi = devices.find(fields =>
+                    fields[1] === "wifi" && fields[2] === "connected"
+                )
+
+                if (ethernet) {
                     networkStatus = "Ethernet"
-                    networkConnection = ethernet.split(":")[3] || "Connected"
-                } else if (wifi && wifi.split(":")[2] === "connected") {
+                    networkConnection = ethernet.slice(3).join(":") || "Connected"
+                } else if (wifi) {
                     networkStatus = "Wi-Fi"
-                    networkConnection = wifi.split(":")[3] || "Connected"
+                    networkConnection = wifi.slice(3).join(":") || "Connected"
                 } else {
                     networkStatus = "Disconnected"
                     networkConnection = ""
@@ -105,11 +114,7 @@ ShellRoot {
                     anchors.fill: parent
                     hoverEnabled: true
 
-                    onClicked: Quickshell.execDetached([
-                        "fuzzel",
-                        "--config",
-                        "/home/WhiteFox/.config/moonforge/fuzzel.ini"
-                    ])
+                    onClicked: Quickshell.execDetached(["fuzzel"])
                 }
             }
 
