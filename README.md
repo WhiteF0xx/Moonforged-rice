@@ -80,7 +80,7 @@ The files in this repository are maintained separately from their active copies 
 
 The wallpaper is stored in `wallpapers/moonforge_wallpaper.jpg`.
 
-See [INSTALL.md](INSTALL.md) for the manual installation guide. The configuration is being made more portable, but still requires review and testing on each machine.
+See [INSTALL.md](INSTALL.md) for installation instructions, including the installer options and a manual setup path. Review the configuration before applying it to another machine.
 
 ## 🗺️ Roadmap
 
@@ -91,8 +91,8 @@ Planned additions and improvements, in no particular order:
 - [x] Remove machine-specific monitor, network-interface, home-directory, and wallpaper-path assumptions where practical.
 - [ ] Make wallpaper setup and startup more reliable.
 - [x] Add screenshots to the README.
-- [ ] Create installation scripts with dependency checks.
-- [ ] Add safe backup and restore options for existing configurations.
+- [x] Add an installation script with package checks, protected Hyprland configuration, and backup reporting.
+- [x] Add dry-run and package-skip options for safer installation.
 - [ ] Document keybindings, customization points, and troubleshooting steps.
 - [ ] Explore further desktop polish and optional quality-of-life widgets.
 
@@ -109,7 +109,7 @@ The roadmap is a living list; items may change as the desktop develops.
 
 ## 🚧 Project status
 
-**Work in progress.** Moonforge is being developed one component at a time. Features and **installation** instructions will be expanded as they become stable.
+**Work in progress.** The installer and current configuration are available for testing, but hardware-specific behavior and future changes may still require manual adjustments. See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ---
 
