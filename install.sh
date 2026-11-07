@@ -88,14 +88,19 @@ ask() {
 
 backup_file() {
     local target="$1"
+    local relative_path="${target#"$CONFIG_DIR"/}"
+    local backup_target="$BACKUP_DIR/$relative_path"
+
     BACKED_UP_FILES+=("$target")
+
     if [[ "$DRY_RUN" == true ]]; then
-        info "Would back up $target to $BACKUP_DIR/"
+        info "Would back up $target to $backup_target"
         return 0
     fi
-    mkdir -p "$BACKUP_DIR"
-    cp -a -- "$target" "$BACKUP_DIR/"
-    info "Backed up $target to $BACKUP_DIR/"
+
+    mkdir -p "$(dirname -- "$backup_target")"
+    cp -a -- "$target" "$backup_target"
+    info "Backed up $target to $backup_target"
 }
 
 install_file() {
@@ -151,9 +156,9 @@ print_list() {
 [[ -f /etc/arch-release ]] || error "Moonforge's installer currently supports Arch Linux only."
 [[ "$EUID" -ne 0 ]] || error "Do not run this installer with sudo. Run it as your normal user."
 
-for command in pacman git; do
-    command -v "$command" >/dev/null 2>&1 || error "Required command not found: $command"
-done
+if [[ "$MODE" == "update" && "$DRY_RUN" == false ]]; then
+    command -v git >/dev/null 2>&1 || error "Required command not found: git"
+fi
 
 info "Repository: $REPO_DIR"
 info "Configuration directory: $CONFIG_DIR"
@@ -178,6 +183,9 @@ elif ask "Install/check the required official Arch packages with pacman?"; then
     if [[ "$DRY_RUN" == true ]]; then
         info "Would run: sudo pacman -S --needed ${PACKAGES[*]}"
     else
+        command -v pacman >/dev/null 2>&1 || error "Required command not found: pacman"
+        command -v sudo >/dev/null 2>&1 || error "Required command not found: sudo"
+
         sudo pacman -S --needed "${PACKAGES[@]}" || error "Package installation failed."
     fi
 else
@@ -240,14 +248,21 @@ if command -v systemctl >/dev/null 2>&1; then
     if ask "Enable NetworkManager now?"; then
         if [[ "$DRY_RUN" == true ]]; then
             info "Would run: sudo systemctl enable --now NetworkManager"
+        elif ! command -v sudo >/dev/null 2>&1; then
+            warn "Cannot enable NetworkManager: sudo is not installed."
+            SKIPPED_FILES+=("NetworkManager service (sudo missing)")
         elif sudo systemctl enable --now NetworkManager; then
             info "NetworkManager enabled."
         else
-            warn "Could not enable NetworkManager."
+            warn "Could not enable NetworkManager. Check sudo permissions and systemd status."
+            SKIPPED_FILES+=("NetworkManager service (activation failed)")
         fi
     else
         SKIPPED_FILES+=("NetworkManager service")
     fi
+else
+    warn "systemctl is unavailable. NetworkManager service was not configured."
+    SKIPPED_FILES+=("NetworkManager service (systemctl missing)")
 fi
 
 if [[ "$MODE" == "update" ]]; then
