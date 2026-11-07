@@ -66,6 +66,7 @@ PACKAGES=(
     wireplumber
     hyprpolkitagent
     papirus-icon-theme
+    awww
 )
 
 info()  { printf '\n[Moonforge] %s\n' "$*"; }
