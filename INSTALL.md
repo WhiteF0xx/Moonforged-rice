@@ -42,7 +42,7 @@ Moonforge uses `awww` for wallpaper management. It may need to be installed sepa
 
 ## 3. Clone the repository
 
-The current Hyprland wallpaper command expects the repository at `~/Projects/moonforged-rice`. Clone it there to match the default path:
+Clone the repository to a convenient location. The commands below use `~/Projects/moonforged-rice` as an example; the running configuration will not depend on that clone location:
 
 ```bash
 mkdir -p ~/Projects
@@ -50,45 +50,19 @@ git clone https://github.com/WhiteF0xx/moonforged-rice.git ~/Projects/moonforged
 cd ~/Projects/moonforged-rice
 ```
 
-If you choose another location, update the wallpaper path in `hypr/hyprland.conf` before using it.
+You can keep the repository elsewhere; the wallpaper is copied into your user configuration directory in a later step.
 
-## 4. Review machine-specific settings
+## 4. Portable defaults and optional customization
 
-Do this before copying the Hyprland or Quickshell files.
+Moonforge now uses generic defaults where possible:
 
-### Monitor
+- **Monitor:** Hyprland uses the preferred mode and automatic placement for connected monitors. Add explicit monitor rules only if you need custom resolution, refresh rate, position, or scaling. Run `hyprctl monitors` to inspect displays.
+- **Network:** Quickshell detects connected devices by NetworkManager device type (`ethernet` or `wifi`), not by interface name. Make sure NetworkManager is running.
+- **Fuzzel:** The shell and Hyprland launch `fuzzel` without an absolute config path. Fuzzel reads its standard user config at `~/.config/fuzzel/fuzzel.ini`.
+- **Wallpaper:** The startup command reads `~/.config/moonforge/wallpaper.jpg`, independent of where you cloned the repository.
+- **Home directory:** No username-specific home path is embedded in the Quickshell launcher.
 
-The sample Hyprland config contains a monitor rule for:
-
-```ini
-monitor = DP-1, 2560x1440@164.83, 0x0, 1
-```
-
-Check your actual monitor name and supported modes:
-
-```bash
-hyprctl monitors
-```
-
-Edit `hypr/hyprland.conf` to match your display. If you are unsure, use Hyprland's automatic monitor configuration instead of copying the example rule unchanged.
-
-### Network interface names
-
-The Quickshell network status code currently checks the interface names `enp4s0` and `wlp10s0f3u1i2`. These names are specific to the development machine.
-
-Find your own interface names:
-
-```bash
-nmcli device status
-```
-
-Open `quickshell/shell/shell.qml` and replace those two interface names in the network status process with the names shown on your system. If you only use Ethernet or only Wi-Fi, adjust the logic accordingly.
-
-### User-specific paths
-
-The Quickshell file currently contains an absolute path under `/home/WhiteFox/.config/moonforge/` for the Fuzzel configuration. Replace `/home/WhiteFox` with your actual home directory in `quickshell/shell/shell.qml`.
-
-The Hyprland config also refers to the wallpaper inside `~/Projects/moonforged-rice`. If the repository is stored elsewhere, update that path.
+You can still customize monitor rules and other settings for your hardware after installation.
 
 ## 5. Back up existing configuration
 
@@ -100,7 +74,7 @@ stamp=$(date +%Y%m%d-%H%M%S)
 for file in \
   ~/.config/hypr/hyprland.conf \
   ~/.config/quickshell/shell.qml \
-  ~/.config/moonforge/fuzzel.ini \
+  ~/.config/fuzzel/fuzzel.ini \
   ~/.config/kitty/kitty.conf
 do
   if [ -f "$file" ]; then
@@ -116,7 +90,7 @@ This backs up those individual files only. If you have additional Hyprland, Quic
 Create the target directories:
 
 ```bash
-mkdir -p ~/.config/hypr ~/.config/quickshell ~/.config/moonforge ~/.config/kitty
+mkdir -p ~/.config/hypr ~/.config/quickshell ~/.config/fuzzel ~/.config/moonforge ~/.config/kitty
 ```
 
 Copy the project files:
@@ -124,7 +98,8 @@ Copy the project files:
 ```bash
 cp ~/Projects/moonforged-rice/hypr/hyprland.conf ~/.config/hypr/hyprland.conf
 cp ~/Projects/moonforged-rice/quickshell/shell/shell.qml ~/.config/quickshell/shell.qml
-cp ~/Projects/moonforged-rice/fuzzel/moonforge.ini ~/.config/moonforge/fuzzel.ini
+cp ~/Projects/moonforged-rice/fuzzel/moonforge.ini ~/.config/fuzzel/fuzzel.ini
+cp ~/Projects/moonforged-rice/wallpapers/moonforge_wallpaper.jpg ~/.config/moonforge/wallpaper.jpg
 cp ~/Projects/moonforged-rice/kitty/moonforge.conf ~/.config/kitty/moonforge.conf
 ```
 
@@ -172,7 +147,7 @@ If you use the included wallpaper startup commands, ensure `awww` is installed a
 
 ```bash
 awww-daemon
-awww img ~/Projects/moonforged-rice/wallpapers/moonforge_wallpaper.jpg
+awww img ~/.config/moonforge/wallpaper.jpg
 ```
 
 Avoid starting a second daemon if one is already running.
@@ -203,7 +178,7 @@ Run `qs` from a terminal inside the Hyprland session and read the error output. 
 
 ### Network status shows disconnected
 
-Run `nmcli device status` and compare the interface names with those in `shell.qml`. Make sure NetworkManager is running.
+Run `nmcli device status` and make sure NetworkManager is running. The bar detects connected Ethernet and Wi-Fi devices by their NetworkManager device type.
 
 ### Audio controls show no device
 
@@ -211,11 +186,11 @@ Check that PipeWire and WirePlumber are running in the user session and that an 
 
 ### Wallpaper does not load
 
-Confirm that `awww-daemon` is running and that the image path in the Hyprland config points to the wallpaper file in this repository.
+Confirm that `awww-daemon` is running and that `~/.config/moonforge/wallpaper.jpg` exists.
 
 ### Fuzzel does not open
 
-Run `fuzzel --config ~/.config/moonforge/fuzzel.ini` from a terminal. Check that the file exists at that exact path and that the configured icon theme is installed.
+Run `fuzzel --config ~/.config/moonforge/fuzzel.ini` from a terminal. Check that `~/.config/fuzzel/fuzzel.ini` exists and that the configured icon theme is installed.
 
 ## 10. Updating Moonforge
 
