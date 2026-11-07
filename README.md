@@ -31,6 +31,22 @@ Moonforge uses a moonlit, Catppuccin Mocha-inspired palette, with soft blue and 
 | Lavender accent | `#cba6f7` |
 | Main text | `#cdd6f4` |
 
+## 🖥️ Screenshots
+
+### Desktop
+
+![Moonforge desktop](screenshots/desktop.png)
+
+### Components
+
+| Audio controls | Network controls |
+|---|---|
+| ![Audio popup](screenshots/audio-popup.png) | ![Network popup](screenshots/network-popup.png) |
+
+| System tray menu | Fuzzel launcher |
+|---|---|
+| ![System tray menu](screenshots/tray-menu.png) | ![Fuzzel launcher](screenshots/fuzzel.png) |
+
 ## ✨ Current features
 
 - **Hyprland** — window layout settings and keyboard bindings.
@@ -48,11 +64,12 @@ This project is being built and tested on a personal Arch Linux installation. So
 
 ```text
 .
-├── hypr/       # Hyprland configuration
-├── quickshell/ # Custom shell, bar, and popups
-├── fuzzel/     # Application launcher theme
-├── kitty/      # Terminal color theme
-└── wallpapers/ # Moonforge wallpaper
+├── hypr/        # Hyprland configuration
+├── quickshell/  # Custom shell, bar, and popups
+├── fuzzel/      # Application launcher theme
+├── kitty/       # Terminal color theme
+├── wallpapers/  # Moonforge wallpaper
+└── screenshots/ # Desktop and component screenshots
 ```
 
 ## 🛠️ Applying configurations
@@ -72,7 +89,7 @@ Planned additions and improvements, in no particular order:
 - [ ] Refine the Quickshell bar layout, animations, and responsive behavior.
 - [ ] Improve theme consistency across Fuzzel, Kitty, notifications, icons, and other desktop components.
 - [ ] Make wallpaper setup and startup more reliable.
-- [ ] Add screenshots and clearer setup documentation.
+- [x] Add screenshots to the README.
 - [ ] Create installation scripts with dependency checks.
 - [ ] Add safe backup and restore options for existing configurations.
 - [ ] Document keybindings, customization points, and troubleshooting steps.
