@@ -14,15 +14,15 @@ case "${1:-}" in
         MODE="update"
         ;;
     --help|-h)
-        printf 'Usage: ./install.sh [--update|--help]\\n'
-        printf '  (no option)  Install Moonforge configuration.\\n'
-        printf '  --update     Pull the latest repository changes, then refresh configuration files.\\n'
-        printf '  --help       Show this help message.\\n'
+        printf 'Usage: ./install.sh [--update|--help]\n'
+        printf '  (no option)  Install Moonforge configuration.\n'
+        printf '  --update     Pull the latest repository changes, then refresh configuration files.\n'
+        printf '  --help       Show this help message.\n'
         exit 0
         ;;
     *)
-        printf '[Error] Unknown option: %s\\n' "$1" >&2
-        printf 'Run ./install.sh --help for usage.\\n' >&2
+        printf '[Error] Unknown option: %s\n' "$1" >&2
+        printf 'Run ./install.sh --help for usage.\n' >&2
         exit 2
         ;;
 esac
