@@ -8,6 +8,7 @@ set -Eeuo pipefail
 MODE="install"
 ASSUME_YES=false
 DRY_RUN=false
+NO_PACKAGES=false
 INSTALLED_FILES=()
 UPDATED_FILES=()
 SKIPPED_FILES=()
@@ -24,8 +25,11 @@ while (($#)); do
         --dry-run)
             DRY_RUN=true
             ;;
+        --no-packages)
+            NO_PACKAGES=true
+            ;;
         --help|-h)
-            printf 'Usage: ./install.sh [--update] [--yes] [--dry-run]\n'
+            printf 'Usage: ./install.sh [--update] [--yes] [--dry-run] [--no-packages]\n'
             printf '  (no option)  Install Moonforge configuration interactively.\n'
             printf '  --update     Pull the latest repository changes before installing.\n'
             printf '  --yes, -y    Automatically accept package installation, file replacements,\n'
@@ -33,6 +37,7 @@ while (($#)); do
             printf '               still protected and never overwritten.\n'
             printf '  --dry-run    Simulate the installation without changing files, installing\n'
             printf '               packages, pulling Git changes, or enabling services.\n'
+            printf '  --no-packages Skip pacman package installation; use when dependencies exist.\n'
             printf '  --help       Show this help message.\n'
             exit 0
             ;;
@@ -166,7 +171,10 @@ if [[ "$MODE" == "update" ]]; then
     fi
 fi
 
-if ask "Install/check the required official Arch packages with pacman?"; then
+if [[ "$NO_PACKAGES" == true ]]; then
+    info "Package installation disabled by --no-packages."
+    SKIPPED_FILES+=("Package installation (--no-packages)")
+elif ask "Install/check the required official Arch packages with pacman?"; then
     if [[ "$DRY_RUN" == true ]]; then
         info "Would run: sudo pacman -S --needed ${PACKAGES[*]}"
     else
@@ -174,6 +182,7 @@ if ask "Install/check the required official Arch packages with pacman?"; then
     fi
 else
     warn "Skipped package installation. Make sure the required packages are already installed."
+    SKIPPED_FILES+=("Package installation")
 fi
 
 # Never replace an existing personal Hyprland configuration automatically.
