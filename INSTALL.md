@@ -1,10 +1,49 @@
 # Moonforge Installation Guide
 
-Moonforge is a personal Arch Linux / Hyprland configuration project. These instructions describe how to apply the current configuration on a fresh Arch Linux installation.
+Moonforge is a personal Arch Linux / Hyprland configuration project. These instructions describe how to install the current configuration on Arch Linux, using the included installer or the manual steps below.
 
-> **Important:** This is a work in progress, not a universal one-click installer. Review the configuration and adapt machine-specific settings before applying it. Back up existing files first. The Hyprland configuration in this repository is intended as a starting point and can replace existing keybindings and settings if copied over an existing setup.
+> **Important:** Moonforge is still evolving and is not a universal one-click desktop setup. Review the configuration and adapt machine-specific settings before applying it. The installer backs up files it replaces and never overwrites an existing Hyprland configuration. Manual copying, however, can overwrite files, so back them up first.
 
-## 1. Requirements
+## 1. Quick installation (recommended)
+
+Clone the repository and enter its directory:
+
+```bash
+mkdir -p ~/Projects
+git clone https://github.com/WhiteF0xx/moonforged-rice.git ~/Projects/moonforged-rice
+cd ~/Projects/moonforged-rice
+chmod +x install.sh
+```
+
+Run the interactive installer:
+
+```bash
+./install.sh
+```
+
+The installer checks for Arch Linux, offers to install the required official packages, installs the Moonforge configuration, and can enable NetworkManager. Existing files are backed up before replacement. An existing `~/.config/hypr/hyprland.conf` is deliberately protected and is never replaced; merge the sample settings manually if needed.
+
+### Installer options
+
+| Command | Behavior |
+|---|---|
+| `./install.sh` | Interactive installation |
+| `./install.sh --yes` | Automatically accept package installation, file replacements, and NetworkManager activation |
+| `./install.sh --no-packages` | Skip pacman; use when dependencies are already installed |
+| `./install.sh --dry-run` | Simulate the process without changing files or system state |
+| `./install.sh --yes --dry-run --no-packages` | Non-interactive simulation without package or service actions |
+| `./install.sh --update` | Pull the latest repository changes, then run the installer |
+| `./install.sh --help` | Show available options |
+
+**Safety notes:**
+- Do not run the installer with `sudo`; it invokes privileged commands only when needed.
+- `--yes` accepts prompts, including package installation and enabling NetworkManager. Use `--dry-run` to preview first.
+- `--no-packages` skips pacman but does not verify that every dependency is installed.
+- `--dry-run` does not pull Git changes, install packages, write files, create backups, or enable services.
+- Replacements are backed up under `~/.config/moonforge/backups/` (or the corresponding `XDG_CONFIG_HOME`).
+- The installer currently supports Arch Linux only. The `awww` wallpaper daemon is optional and may need separate installation.
+
+## 2. Requirements
 
 - Arch Linux
 - A working Hyprland session
@@ -26,7 +65,7 @@ The current configuration uses these components:
 | `papirus-icon-theme` | Launcher icon theme |
 | `awww` | Wallpaper daemon (optional, installed separately if not available in your configured repositories) |
 
-## 2. Install packages
+## 3. Install packages
 
 Install the main packages from the official repositories:
 
@@ -40,7 +79,7 @@ Audio support depends on the PipeWire packages and services already configured o
 
 Moonforge uses `awww` for wallpaper management. It may need to be installed separately depending on your enabled repositories and package source. If using an AUR helper, inspect the package and build information before installing it.
 
-## 3. Clone the repository
+## 4. Clone the repository
 
 Clone the repository to a convenient location. The commands below use `~/Projects/moonforged-rice` as an example; the running configuration will not depend on that clone location:
 
@@ -52,7 +91,7 @@ cd ~/Projects/moonforged-rice
 
 You can keep the repository elsewhere; the wallpaper is copied into your user configuration directory in a later step.
 
-## 4. Portable defaults and optional customization
+## 5. Portable defaults and optional customization
 
 Moonforge now uses generic defaults where possible:
 
@@ -64,7 +103,7 @@ Moonforge now uses generic defaults where possible:
 
 You can still customize monitor rules and other settings for your hardware after installation.
 
-## 5. Back up existing configuration
+## 6. Back up existing configuration
 
 Do not overwrite existing configuration files without a backup. The following example creates timestamped copies of the files that are about to be replaced:
 
@@ -85,7 +124,7 @@ done
 
 This backs up those individual files only. If you have additional Hyprland, Quickshell, Fuzzel, or Kitty configuration files, back those up separately as well.
 
-## 6. Apply the configurations
+## 7. Apply the configurations
 
 Create the target directories:
 
@@ -115,7 +154,7 @@ include moonforge.conf
 
 If you do not already have a `kitty.conf`, create one with that line.
 
-## 7. Start required services and test
+## 8. Start required services and test
 
 Make sure NetworkManager is enabled if you use it:
 
@@ -152,7 +191,7 @@ awww img ~/.config/moonforge/wallpaper.jpg
 
 Avoid starting a second daemon if one is already running.
 
-## 8. Useful keybindings
+## 9. Useful keybindings
 
 The sample Hyprland configuration currently defines:
 
@@ -170,7 +209,7 @@ The sample Hyprland configuration currently defines:
 
 These are the defaults in the repository configuration; edit them to suit your workflow. Flameshot is optional and is not included in the main package list.
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 ### Quickshell bar does not appear
 
@@ -192,7 +231,7 @@ Confirm that `awww-daemon` is running and that `~/.config/moonforge/wallpaper.jp
 
 Run `fuzzel` from a terminal. Check that `~/.config/fuzzel/fuzzel.ini` exists and that the configured icon theme is installed.
 
-## 10. Updating Moonforge
+## 11. Updating Moonforge
 
 From the repository directory:
 
