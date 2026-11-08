@@ -157,12 +157,9 @@ ShellRoot {
                             anchors.fill: parent
                             hoverEnabled: true
 
-                            onClicked: Quickshell.execDetached([
-                                "hyprctl",
-                                "dispatch",
-                                "workspace",
-                                String(index + 1)
-                            ])
+                            onClicked: Hyprland.dispatch(
+                                "hl.dsp.focus({ workspace = " + (index + 1) + " })"
+                            )
                         }
                     }
                 }
