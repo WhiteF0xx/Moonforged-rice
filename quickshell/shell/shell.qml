@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Services.SystemTray
+import Quickshell.Services.Notifications
 import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
@@ -13,6 +14,12 @@ import QtQuick.Controls
 ShellRoot {
     property string networkStatus: "Checking..."
     property string networkConnection: ""
+    property int unreadNotifications: 0
+
+    // Notification history grouped by application. Each group contains its
+    // app name/icon, expanded state, and an array of individual notifications.
+    property var notificationGroups: []
+
 
     // Network status tracker
     Process {
@@ -54,6 +61,587 @@ ShellRoot {
 
         Component.onCompleted: running = true
         onExited: running = true
+    }
+
+    //// Functions ////
+        // Resolve the icon path for a given application name
+        function resolveAppIcon(appName) {
+            if (!appName)
+                return ""
+
+            const entry = DesktopEntries.heuristicLookup(appName)
+
+            if (entry && entry.icon)
+                return Quickshell.iconPath(entry.icon, true)
+
+            return Quickshell.iconPath(
+                appName.toLowerCase(),
+                true
+            )
+        }
+
+        // Add a notification to the notification center and popup
+        function addNotification(notification) {
+            const appName = notification.appName || "Unknown"
+            const appIcon = resolveAppIcon(appName)
+
+            const newNotification = {
+                summary: notification.summary || "",
+                body: notification.body || "",
+                receivedAt: Qt.formatTime(new Date(), "hh:mm")
+            }
+
+            // Copy the outer array so QML detects the change.
+            let groups = notificationGroups.slice()
+            let groupIndex = groups.findIndex(
+                group => group.appName === appName
+            )
+
+            if (groupIndex === -1) {
+                groups.unshift({
+                    appName: appName,
+                    appIcon: appIcon,
+                    expanded: true,
+                    notifications: [newNotification]
+                })
+            } else {
+                let group = Object.assign({}, groups[groupIndex])
+                group.notifications = group.notifications.slice()
+                group.notifications.unshift(newNotification)
+                group.appIcon = group.appIcon || appIcon
+
+                // Move the updated app stack to the top.
+                groups.splice(groupIndex, 1)
+                groups.unshift(group)
+            }
+
+            // Enforce the 50-notification limit across all groups.
+            let total = groups.reduce(
+                (count, group) => count + group.notifications.length,
+                0
+            )
+
+            while (total > 50) {
+                const lastGroup = groups[groups.length - 1]
+                lastGroup.notifications.pop()
+                total--
+
+                if (lastGroup.notifications.length === 0)
+                    groups.pop()
+            }
+
+            notificationGroups = groups
+        }
+
+        // Remove a notification from the notification center and popup
+        function removeNotification(groupIndex, notificationIndex) {
+            let groups = notificationGroups.slice()
+            let group = Object.assign({}, groups[groupIndex])
+
+            group.notifications = group.notifications.slice()
+            group.notifications.splice(notificationIndex, 1)
+
+            if (group.notifications.length === 0) {
+                groups.splice(groupIndex, 1)
+            } else {
+                groups[groupIndex] = group
+            }
+
+            notificationGroups = groups
+        }
+
+        // Toggle the expanded/collapsed state of a notification group
+        function toggleNotificationGroup(groupIndex) {
+            let groups = notificationGroups.slice()
+            let group = Object.assign({}, groups[groupIndex])
+
+            group.expanded = !group.expanded
+            groups[groupIndex] = group
+
+            notificationGroups = groups
+        }
+
+        // Remove an entire notification group from the notification center
+        function removeNotificationGroup(groupIndex) {
+            let groups = notificationGroups.slice()
+            groups.splice(groupIndex, 1)
+            notificationGroups = groups
+        }
+
+        // Clear every saved notification group and reset the unread indicator.
+        function clearNotificationHistory() {
+            notificationGroups = []
+            unreadNotifications = 0
+        }
+    //////////////////
+
+    // Notification center popup
+    PopupWindow {
+        id: notificationCenterPopup
+
+        anchor.window: barWindow
+        anchor.edges: Edges.Top | Edges.Left
+        anchor.gravity: Edges.Bottom | Edges.Right
+
+        Connections {
+            target: notificationCenterPopup.anchor
+
+            function onAnchoring() {
+                const pos = notificationCenterButton.mapToItem(
+                    barWindow.contentItem, 0, 0
+                )
+
+                notificationCenterPopup.anchor.rect.x = pos.x
+                notificationCenterPopup.anchor.rect.y = barWindow.height
+                notificationCenterPopup.anchor.rect.width =
+                    notificationCenterButton.width
+                notificationCenterPopup.anchor.rect.height =
+                    notificationCenterButton.height
+            }
+        }
+
+        implicitWidth: 360
+        implicitHeight: 420
+
+        visible: false
+        color: "transparent"
+        grabFocus: true
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 12
+            color: "#1e1e2e"
+            border.width: 1
+            border.color: "#45475a"
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                // Header
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Text {
+                        text: "Notifications"
+                        color: "#cdd6f4"
+                        font.pixelSize: 18
+                        font.bold: true
+
+                        Layout.fillWidth: true
+                    }
+
+                    Text {
+                        text: "Clear all"
+                        color: "#89b4fa"
+                        font.pixelSize: 12
+
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: clearNotificationHistory()
+                        }
+                    }
+                }
+
+                // Divider line
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: "#45475a"
+                }
+
+                // Notification history
+                ListView {
+                    id: notificationHistoryList
+
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    model: notificationGroups
+                    spacing: 10
+                    clip: true
+
+                    delegate: Rectangle {
+                        required property int index
+                        required property var modelData
+
+                        property int stackIndex: index
+
+                        width: notificationHistoryList.width
+                        height: groupContent.implicitHeight + 20
+
+                        radius: 9
+                        color: "#313244"
+                        border.width: 1
+                        border.color: "#45475a"
+
+                        ColumnLayout {
+                            id: groupContent
+
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            spacing: 8
+
+                            // Application stack header
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                // Application icon
+                                Image {
+                                    source: modelData.appIcon
+                                    sourceSize.width: 22
+                                    sourceSize.height: 22
+                                    Layout.preferredWidth: 22
+                                    Layout.preferredHeight: 22
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: true
+                                }
+
+                                // Application name
+                                Text {
+                                    text: modelData.appName
+                                    color: "#89b4fa"
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                    Layout.fillWidth: true
+                                }
+                                
+                                // Notification count for the application stack
+                                Text {
+                                    text: modelData.notifications.length
+                                    color: "#cdd6f4"
+                                    font.pixelSize: 10
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+
+                                // Remove notification group button
+                                Text {
+                                    text: "×"
+                                    color: "#f38ba8"
+                                    font.pixelSize: 20
+                                    font.bold: true
+                                    Layout.preferredWidth: 22
+                                    Layout.preferredHeight: 24
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+
+                                        onClicked: removeNotificationGroup(stackIndex)
+                                    }
+                                }
+
+                                // Expand/collapse arrow for the application stack
+                                Text {
+                                    id: groupArrow
+
+                                    text: "⌄"
+                                    color: "#cba6f7"
+                                    font.pixelSize: 19
+
+                                    rotation: modelData.expanded ? 0 : -90
+
+                                    Layout.preferredWidth: 20
+                                    Layout.preferredHeight: 24
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+
+                                    Behavior on rotation {
+                                        NumberAnimation {
+                                            duration: 180
+                                            easing.type: Easing.OutCubic
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+
+                                        onClicked: toggleNotificationGroup(stackIndex)
+                                    }
+                                }
+
+                            }
+
+                            // Notification items for the application stack
+                            Item {
+                                id: notificationsArea
+
+                                Layout.fillWidth: true
+                                Layout.minimumHeight: 0
+                                clip: true
+
+                                // Animate the visible height and opacity together.
+                                // The notification delegates stay alive while collapsed,
+                                // so expanding the stack does not need to recreate them.
+                                property real revealProgress: modelData.expanded ? 1 : 0
+
+                                implicitHeight: notificationItems.implicitHeight
+
+                                Layout.preferredHeight: implicitHeight * revealProgress
+
+                                opacity: revealProgress
+
+                                Behavior on revealProgress {
+                                    NumberAnimation {
+                                        duration: 220
+                                        easing.type: Easing.OutCubic
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    id: notificationItems
+
+                                    width: notificationsArea.width
+                                    spacing: 8
+
+                                    // One delegate per notification in this app's stack.
+                                    // This inner delegate is intentionally separate from the
+                                    // outer ListView delegate, which represents the app group.
+                                    Repeater {
+                                        model: modelData.notifications
+
+                                        delegate: Rectangle {
+                                            required property int index
+                                            required property var modelData
+
+                                            Layout.fillWidth: true
+                                            implicitHeight: notificationContent.implicitHeight + 12
+                                            radius: 6
+                                            color: "#262638"
+
+                                            RowLayout {
+                                                anchors.fill: parent
+                                                anchors.margins: 8
+                                                spacing: 8
+
+                                                Rectangle {
+                                                    Layout.fillHeight: true
+                                                    Layout.preferredWidth: 2
+                                                    radius: 2
+                                                    color: "#89b4fa"
+                                                }
+
+                                                ColumnLayout {
+                                                    id: notificationContent
+                                                    Layout.fillWidth: true
+                                                    spacing: 5
+
+                                                    Text {
+                                                        text: modelData.summary
+                                                        color: "#cdd6f4"
+                                                        font.bold: true
+                                                        wrapMode: Text.Wrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Text {
+                                                        visible: modelData.body.length > 0
+                                                        text: modelData.body
+                                                        color: "#a6adc8"
+                                                        wrapMode: Text.Wrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    RowLayout {
+                                                        Item {
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Text {
+                                                            text: modelData.receivedAt
+                                                            color: "#6c7086"
+                                                            font.pixelSize: 10
+                                                        }
+
+                                                        Text {
+                                                            text: "×"
+                                                            color: "#f38ba8"
+                                                            font.pixelSize: 16
+
+                                                            MouseArea {
+                                                                anchors.fill: parent
+                                                                cursorShape: Qt.PointingHandCursor
+                                                                onClicked: removeNotification(stackIndex, index)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+
+                    // Display a message when there are no notifications
+                    Text {
+                        anchors.centerIn: parent
+                        visible: notificationGroups.length === 0
+                        text: "No notifications yet"
+                        color: "#a6adc8"
+                        font.pixelSize: 13
+                    }
+                }
+            }
+        }
+    }
+
+    // Moonforge notification server
+    NotificationServer {
+        id: notificationServer
+
+        keepOnReload: true
+        
+
+        onNotification: notification => {
+            notification.tracked = true
+            unreadNotifications++
+
+            addNotification(notification)
+
+            console.info(
+                "Moonforge received:",
+                notification.appName,
+                "-",
+                notification.summary
+            )
+        }
+    }
+
+    // Moonforge notification popups
+    PanelWindow {
+        id: notificationPopupWindow
+
+        anchors {
+            top: true
+            right: true
+        }
+
+        margins {
+            top: 15
+            right: 16
+        }
+
+        implicitWidth: 360
+        implicitHeight: notificationColumn.implicitHeight + 16
+
+        color: "transparent"
+
+        ColumnLayout {
+            id: notificationColumn
+
+            anchors.fill: parent
+            anchors.margins: 8
+            spacing: 8
+
+            Repeater {
+                model: notificationServer.trackedNotifications
+
+                delegate: Rectangle {
+                    id: notificationCard
+
+                    required property var modelData
+
+                    opacity: 1
+
+                    Layout.fillWidth: true
+                    implicitHeight: popupContent.implicitHeight + 24
+
+                    radius: 12
+                    color: "#1e1e2e"
+                    border.width: 1
+                    border.color: "#89b4fa"
+
+                    Timer {
+                        interval: 2500
+                        running: true
+                        repeat: false
+
+                        onTriggered: fadeOut.start()
+                    }
+
+                    NumberAnimation {
+                        id: fadeOut
+
+                        target: notificationCard
+                        property: "opacity"
+                        from: 1
+                        to: 0
+                        duration: 350
+
+                        onFinished: modelData.expire()
+                    }
+
+                    ColumnLayout {
+                        id: popupContent
+
+                        anchors {
+                            fill: parent
+                            margins: 12
+                        }
+
+                        spacing: 6
+
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Text {
+                                Layout.fillWidth: true
+
+                                text: modelData.appName
+                                color: "#89b4fa"
+                                font.pixelSize: 11
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                text: "×"
+                                color: "#cba6f7"
+                                font.pixelSize: 20
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    anchors.margins: -6
+
+                                    onClicked: modelData.dismiss()
+                                }
+                            }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+
+                            text: modelData.summary
+                            color: "#cdd6f4"
+                            font.pixelSize: 14
+                            font.bold: true
+                            wrapMode: Text.Wrap
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+
+                            visible: modelData.body.length > 0
+                            text: modelData.body
+                            color: "#a6adc8"
+                            font.pixelSize: 12
+                            wrapMode: Text.Wrap
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Periodically check network status every 5 seconds
@@ -173,8 +761,6 @@ ShellRoot {
             // Moonforge Audio Capsule
             Rectangle {
                 id: audioCapsule
-
-                property bool audioPopupOpen: false
 
                 implicitWidth: audioLabel.implicitWidth + 42
                 implicitHeight: 30
@@ -411,8 +997,7 @@ ShellRoot {
                                 WheelHandler {
                                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
 
-                                    onWheel: event => {
-                                        const audio = Pipewire.defaultAudioSink
+                                    onWheel: event => {                                        const audio = Pipewire.defaultAudioSink
                                             ? Pipewire.defaultAudioSink.audio
                                             : null
 
@@ -1004,6 +1589,69 @@ ShellRoot {
 
                 onTriggered: clockText.text =
                     Qt.formatDateTime(new Date(), "ddd dd MMM  hh:mm")
+            }
+
+            // Moonforge notification center button
+            Rectangle {
+                id: notificationCenterButton
+
+                implicitWidth: 34
+                implicitHeight: 30
+                radius: 8
+
+                color: notificationCenterMouse.containsMouse
+                    ? "#45475a" : "#313244"
+
+                border.width: 1
+                border.color: "#45475a"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "󰂚"
+                    color: "#89b4fa"
+                    font.pixelSize: 17
+                }
+
+                MouseArea {
+                    id: notificationCenterMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+
+                    onClicked: {
+                        notificationCenterPopup.visible =
+                            !notificationCenterPopup.visible
+
+                        if (notificationCenterPopup.visible) {
+                            unreadNotifications = 0
+                        }
+                    }
+                }
+
+                // Unread notification indicator
+                Rectangle {
+                    id: unreadIndicator
+
+                    visible: unreadNotifications > 0
+
+                    width: 9
+                    height: 9
+                    radius: 5
+
+                    color: "#89b4fa"
+
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.topMargin: 3
+                    anchors.rightMargin: 3
+
+                    border.width: 1
+                    border.color: "#1e1e2e"
+                }
+
+                Behavior on color {
+                    ColorAnimation { duration: 120 }
+                }
             }
         }
         
