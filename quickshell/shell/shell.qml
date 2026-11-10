@@ -12,6 +12,8 @@ import QtQuick.Layouts
 import QtQuick.Controls
 
 ShellRoot {
+    id: shellRoot
+    
     property string networkStatus: "Checking..."
     property string networkConnection: ""
     property int unreadNotifications: 0
