@@ -163,6 +163,9 @@ ShellRoot {
             }
 
             notificationGroups = groups
+
+            // Dismissing a history item also clears one unread notification.
+            unreadNotifications = Math.max(0, unreadNotifications - 1)
         }
 
         // Toggle the expanded/collapsed state of a notification group
@@ -567,8 +570,9 @@ ShellRoot {
                                                     }
                                                 }
 
-                                                ScriptAction {
-                                                    script: shellRoot.removeNotificationById(
+                                                // Commit the data removal only after the exit animation finishes.
+                                                onFinished: {
+                                                    shellRoot.removeNotificationById(
                                                         notificationGroupDelegate.stackAppName,
                                                         notificationHistoryCard.modelData.id
                                                     )
