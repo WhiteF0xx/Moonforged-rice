@@ -15,6 +15,7 @@ ShellRoot {
     property string networkStatus: "Checking..."
     property string networkConnection: ""
     property int unreadNotifications: 0
+    property int nextNotificationId: 1
 
     // Notification history grouped by application. Each group contains its
     // app name/icon, expanded state, and an array of individual notifications.
@@ -86,6 +87,7 @@ ShellRoot {
             const appIcon = resolveAppIcon(appName)
 
             const newNotification = {
+                id: nextNotificationId++,
                 summary: notification.summary || "",
                 body: notification.body || "",
                 receivedAt: Qt.formatTime(new Date(), "hh:mm")
@@ -133,12 +135,25 @@ ShellRoot {
             notificationGroups = groups
         }
 
-        // Remove a notification from the notification center and popup
-        function removeNotification(groupIndex, notificationIndex) {
+        // Remove by stable notification ID instead of a delegate index.
+        // This remains safe if another notification arrives during the exit animation.
+        function removeNotificationById(appName, notificationId) {
             let groups = notificationGroups.slice()
-            let group = Object.assign({}, groups[groupIndex])
+            const groupIndex = groups.findIndex(group => group.appName === appName)
 
+            if (groupIndex === -1)
+                return
+
+            let group = Object.assign({}, groups[groupIndex])
             group.notifications = group.notifications.slice()
+
+            const notificationIndex = group.notifications.findIndex(
+                notification => notification.id === notificationId
+            )
+
+            if (notificationIndex === -1)
+                return
+
             group.notifications.splice(notificationIndex, 1)
 
             if (group.notifications.length === 0) {
@@ -266,18 +281,39 @@ ShellRoot {
                     clip: true
 
                     delegate: Rectangle {
+                        id: notificationGroupDelegate
+
                         required property int index
                         required property var modelData
 
                         property int stackIndex: index
+                        property string stackAppName: modelData.appName
 
                         width: notificationHistoryList.width
                         height: groupContent.implicitHeight + 20
 
                         radius: 9
-                        color: "#313244"
+                        color: groupHover.hovered ? "#38384d" : "#313244"
                         border.width: 1
-                        border.color: "#45475a"
+                        border.color: groupHover.hovered ? "#585875" : "#45475a"
+
+                        HoverHandler {
+                            id: groupHover
+                        }
+
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: 140
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+
+                        Behavior on border.color {
+                            ColorAnimation {
+                                duration: 140
+                                easing.type: Easing.OutCubic
+                            }
+                        }
 
                         ColumnLayout {
                             id: groupContent
@@ -354,9 +390,11 @@ ShellRoot {
                                     verticalAlignment: Text.AlignVCenter
 
                                     Behavior on rotation {
-                                        NumberAnimation {
-                                            duration: 180
-                                            easing.type: Easing.OutCubic
+                                        SpringAnimation {
+                                            spring: 3.2
+                                            damping: 0.28
+                                            mass: 1.0
+                                            epsilon: 0.01
                                         }
                                     }
 
@@ -378,20 +416,26 @@ ShellRoot {
                                 Layout.minimumHeight: 0
                                 clip: true
 
-                                // Animate the visible height and opacity together.
-                                // The notification delegates stay alive while collapsed,
-                                // so expanding the stack does not need to recreate them.
+                                // Keep the cards alive while collapsed. A spring controls
+                                // the stack height while a short fade runs alongside it.
                                 property real revealProgress: modelData.expanded ? 1 : 0
 
                                 implicitHeight: notificationItems.implicitHeight
-
                                 Layout.preferredHeight: implicitHeight * revealProgress
-
                                 opacity: revealProgress
 
                                 Behavior on revealProgress {
+                                    SpringAnimation {
+                                        spring: 3.0
+                                        damping: 0.32
+                                        mass: 1.0
+                                        epsilon: 0.01
+                                    }
+                                }
+
+                                Behavior on opacity {
                                     NumberAnimation {
-                                        duration: 220
+                                        duration: 170
                                         easing.type: Easing.OutCubic
                                     }
                                 }
@@ -409,13 +453,129 @@ ShellRoot {
                                         model: modelData.notifications
 
                                         delegate: Rectangle {
+                                            id: notificationHistoryCard
+
                                             required property int index
                                             required property var modelData
 
+                                            property bool dismissing: false
+
                                             Layout.fillWidth: true
-                                            implicitHeight: notificationContent.implicitHeight + 12
+                                            Layout.minimumHeight: 0
+                                            clip: true
+                                            implicitHeight: dismissing ? 0 : notificationContent.implicitHeight + 12
                                             radius: 6
-                                            color: "#262638"
+                                            color: cardHover.hovered ? "#343449" : "#262638"
+                                            opacity: 0
+                                            scale: 0.98
+
+                                            // Cards rise and fade in with a short stagger.
+                                            transform: Translate {
+                                                id: cardEntranceOffset
+                                                y: 8
+                                            }
+
+                                            HoverHandler {
+                                                id: cardHover
+                                            }
+
+                                            Behavior on color {
+                                                ColorAnimation {
+                                                    duration: 130
+                                                    easing.type: Easing.OutCubic
+                                                }
+                                            }
+
+                                            Behavior on implicitHeight {
+                                                NumberAnimation {
+                                                    duration: 190
+                                                    easing.type: Easing.InOutCubic
+                                                }
+                                            }
+
+                                            SequentialAnimation {
+                                                id: cardEntrance
+
+                                                PauseAnimation {
+                                                    duration: Math.min(notificationHistoryCard.index * 34, 204)
+                                                }
+
+                                                ParallelAnimation {
+                                                    NumberAnimation {
+                                                        target: notificationHistoryCard
+                                                        property: "opacity"
+                                                        from: 0
+                                                        to: 1
+                                                        duration: 190
+                                                        easing.type: Easing.OutCubic
+                                                    }
+
+                                                    NumberAnimation {
+                                                        target: cardEntranceOffset
+                                                        property: "y"
+                                                        from: 8
+                                                        to: 0
+                                                        duration: 230
+                                                        easing.type: Easing.OutCubic
+                                                    }
+
+                                                    NumberAnimation {
+                                                        target: notificationHistoryCard
+                                                        property: "scale"
+                                                        from: 0.98
+                                                        to: 1
+                                                        duration: 230
+                                                        easing.type: Easing.OutCubic
+                                                    }
+                                                }
+                                            }
+
+                                            SequentialAnimation {
+                                                id: cardDismiss
+
+                                                ParallelAnimation {
+                                                    NumberAnimation {
+                                                        target: notificationHistoryCard
+                                                        property: "opacity"
+                                                        to: 0
+                                                        duration: 140
+                                                        easing.type: Easing.InCubic
+                                                    }
+
+                                                    NumberAnimation {
+                                                        target: cardEntranceOffset
+                                                        property: "y"
+                                                        to: -5
+                                                        duration: 180
+                                                        easing.type: Easing.InCubic
+                                                    }
+
+                                                    NumberAnimation {
+                                                        target: notificationHistoryCard
+                                                        property: "scale"
+                                                        to: 0.96
+                                                        duration: 180
+                                                        easing.type: Easing.InCubic
+                                                    }
+
+                                                    NumberAnimation {
+                                                        target: notificationHistoryCard
+                                                        property: "implicitHeight"
+                                                        to: 0
+                                                        duration: 190
+                                                        easing.type: Easing.InOutCubic
+                                                    }
+                                                }
+
+                                                ScriptAction {
+                                                    script: shellRoot.removeNotificationById(
+                                                        notificationGroupDelegate.stackAppName,
+                                                        notificationHistoryCard.modelData.id
+                                                    )
+                                                }
+                                            }
+
+                                            Component.onCompleted: cardEntrance.start()
 
                                             RowLayout {
                                                 anchors.fill: parent
@@ -469,7 +629,12 @@ ShellRoot {
                                                             MouseArea {
                                                                 anchors.fill: parent
                                                                 cursorShape: Qt.PointingHandCursor
-                                                                onClicked: removeNotification(stackIndex, index)
+                                                                onClicked: {
+                                                                    if (!notificationHistoryCard.dismissing) {
+                                                                        notificationHistoryCard.dismissing = true
+                                                                        cardDismiss.start()
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -1100,7 +1265,7 @@ ShellRoot {
                     target: networkPopup.anchor
 
                     function onAnchoring() {
-                        const pos = audioCapsule.mapToItem(
+                        const pos = networkCapsule.mapToItem(
                             barWindow.contentItem, 0, 0
                         )
 
