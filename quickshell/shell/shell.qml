@@ -891,7 +891,7 @@ ShellRoot {
                             Hyprland.focusedWorkspace !== null
                             && Hyprland.focusedWorkspace.id === index + 1
 
-                        implicitWidth: 34
+                        implicitWidth: isActive ? 38 : 30
                         implicitHeight: 30
                         radius: 8
 
@@ -900,7 +900,17 @@ ShellRoot {
                                 ? "#45475a" : "#313244"
 
                         Behavior on color {
-                            ColorAnimation { duration: 120 }
+                            ColorAnimation {
+                                duration: 150
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+
+                        Behavior on implicitWidth {
+                            NumberAnimation {
+                                duration: 150
+                                easing.type: Easing.OutCubic
+                            }
                         }
 
                         Text {
@@ -915,10 +925,19 @@ ShellRoot {
                             id: workspaceMouse
                             anchors.fill: parent
                             hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
 
-                            onClicked: Hyprland.dispatch(
-                                "hl.dsp.focus({ workspace = " + (index + 1) + " })"
-                            )
+                            onClicked: {
+                                if (Hyprland.usingLua) {
+                                    Hyprland.dispatch(
+                                        `hl.dsp.focus({ workspace = ${index + 1} })`
+                                    )
+                                } else {
+                                    Hyprland.dispatch(
+                                        `workspace ${index + 1}`
+                                    )
+                                }
+                            }
                         }
                     }
                 }
