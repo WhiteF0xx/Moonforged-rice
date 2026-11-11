@@ -13,7 +13,7 @@ import QtQuick.Controls
 
 ShellRoot {
     id: shellRoot
-    
+
     property string networkStatus: "Checking..."
     property string networkConnection: ""
     property int unreadNotifications: 0
@@ -351,7 +351,7 @@ ShellRoot {
                                     font.bold: true
                                     Layout.fillWidth: true
                                 }
-                                
+
                                 // Notification count for the application stack
                                 Text {
                                     text: modelData.notifications.length
@@ -672,7 +672,7 @@ ShellRoot {
         id: notificationServer
 
         keepOnReload: true
-        
+
 
         onNotification: notification => {
             notification.tracked = true
@@ -824,7 +824,7 @@ ShellRoot {
             if (!networkStatusProcess.running)
                 networkStatusProcess.running = true
         }
-    }  
+    }
 
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink]
@@ -842,13 +842,14 @@ ShellRoot {
         implicitHeight: 44
         color: "#1e1e2e"
 
+        // The main bar layout: launcher, workspace indicators, audio and network capsules, and system tray.
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 14
             anchors.rightMargin: 14
-            spacing: 10
+            spacing: 8
 
-            // Moonforge application launcher
+            // Moonforge application launcher button.
             Rectangle {
                 implicitWidth: 38
                 implicitHeight: 30
@@ -856,6 +857,10 @@ ShellRoot {
 
                 color: launcherMouse.containsMouse
                     ? "#45475a" : "#313244"
+
+                // Match the border used by the other bar capsules.
+                border.width: 1
+                border.color: "#45475a"
 
                 Behavior on color {
                     ColorAnimation { duration: 120 }
@@ -879,7 +884,7 @@ ShellRoot {
 
             // Workspace indicators
             RowLayout {
-                spacing: 5
+                spacing: 4
 
                 Repeater {
                     model: 5
@@ -960,9 +965,10 @@ ShellRoot {
                 border.width: 1
                 border.color: "#45475a"
 
+                // Audio icon and volume percentage display
                 Row {
                     anchors.centerIn: parent
-                    spacing: 7
+                    spacing: 6
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
@@ -1059,6 +1065,7 @@ ShellRoot {
                         anchors.margins: 12
                         spacing: 10
 
+                        // Audio popup header.
                         Row {
                             width: parent.width
                             height: 24
@@ -1074,10 +1081,11 @@ ShellRoot {
                             }
                         }
 
+                        // Master volume control row.
                         Row {
                             width: parent.width
                             spacing: 8
-                            
+
                             // Popup mute button
                             Rectangle {
                                 id: popupMuteButton
@@ -1143,7 +1151,7 @@ ShellRoot {
                                 value: Pipewire.defaultAudioSink?.audio
                                     ? Pipewire.defaultAudioSink.audio.volume
                                     : 0.0
-                                
+
                                 // Master volume slider handle
                                 handle: Rectangle {
                                     x: volumeSlider.leftPadding
@@ -1243,7 +1251,7 @@ ShellRoot {
 
                 Row {
                     anchors.centerIn: parent
-                    spacing: 7
+                    spacing: 6
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
@@ -1387,7 +1395,7 @@ ShellRoot {
 
                     anchors.centerIn: parent
                     spacing: 8
-                    
+
                     // System tray icons
                     Repeater {
                         model: SystemTray.items
@@ -1402,7 +1410,7 @@ ShellRoot {
                                 id: trayMenuOpener
                                 menu: trayEntry.modelData.menu
                             }
-   
+
                             // Popup for the tray icon menu
                             PopupWindow {
                                 id: trayPopup
@@ -1654,8 +1662,8 @@ ShellRoot {
                                                             font.pixelSize: 18
                                                         }
                                                     }
-                                                 
-                                                    
+
+
                                                     MouseArea {
                                                         id: menuMouse
 
@@ -1708,7 +1716,7 @@ ShellRoot {
                                 smooth: true
                             }
 
-                                                        
+
                             MouseArea {
                                 id: trayMouse
 
@@ -1752,12 +1760,14 @@ ShellRoot {
 
             // Date and time display
             Rectangle {
+                id: clockCapsule
+
                 Layout.alignment: Qt.AlignVCenter
                 Layout.preferredWidth: clockText.implicitWidth + 24
                 implicitHeight: 30
 
                 radius: 8
-                color: "#313244"
+                color: clockMouse.containsMouse ? "#45475a" : "#313244"
                 border.width: 1
                 border.color: "#45475a"
 
@@ -1769,6 +1779,280 @@ ShellRoot {
                     font.pixelSize: 13
                     text: Qt.formatDateTime(new Date(), "ddd dd MMM  hh:mm")
                 }
+
+                MouseArea {
+                    id: clockMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+
+                    onClicked: {
+                        clockPopup.visible = !clockPopup.visible
+                    }
+                }
+
+                Behavior on color {
+                    ColorAnimation { duration: 120 }
+                }
+            }
+
+            // Popup for date and time
+            PopupWindow {
+                id: clockPopup
+
+                color: "transparent"
+                anchor.window: barWindow
+                anchor.edges: Edges.Top | Edges.Left
+                anchor.gravity: Edges.Bottom | Edges.Right
+
+                Connections {
+                    target: clockPopup.anchor
+
+                    function onAnchoring() {
+                        const pos = clockCapsule.mapToItem(
+                            barWindow.contentItem, 0, 0
+                        )
+
+                        clockPopup.anchor.rect.x = pos.x - 110
+                        clockPopup.anchor.rect.y = barWindow.height
+                        clockPopup.anchor.rect.width = clockCapsule.width
+                        clockPopup.anchor.rect.height = clockCapsule.height
+                    }
+                }
+
+                implicitWidth: 300
+                implicitHeight: 370
+
+                visible: false
+                grabFocus: true
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: "#1e1e2e"
+                    radius: 12
+                    border.width: 1
+                    border.color: "#45475a"
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 10
+
+                        // Date & Time header
+                        Text {
+                            text: "Date & Time"
+                            color: "#89b4fa"
+                            font.pixelSize: 15
+                            font.bold: true
+                        }
+
+                        // Current date display
+                        Text {
+                            text: Qt.formatDateTime(new Date(), "dddd, dd MMMM yyyy")
+                            color: "#cdd6f4"
+                            font.pixelSize: 14
+                        }
+
+                        // Current time display
+                        Text {
+                            id: popupTimeText
+
+                            text: Qt.formatDateTime(new Date(), "hh:mm:ss")
+                            color: "#cba6f7"
+                            font.pixelSize: 28
+                            font.bold: true
+                        }
+
+                        // Interactive monthly calendar
+                        Column {
+                            id: calendarSection
+
+                            width: parent.width
+                            spacing: 9
+
+                            // Today's date, used to highlight the current day.
+                            readonly property var today: new Date()
+
+                            // The month currently displayed in the calendar.
+                            property var displayedMonth:
+                                new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+
+                            // Move to the previous or next month.
+                            function changeMonth(amount) {
+                                displayedMonth = new Date(
+                                    displayedMonth.getFullYear(),
+                                    displayedMonth.getMonth() + amount,
+                                    1
+                                )
+                            }
+
+                            // Calendar month header and navigation.
+                            RowLayout {
+                                width: parent.width
+                                height: 28
+                                spacing: 0
+
+                                // Previous month button.
+                                Rectangle {
+                                    Layout.preferredWidth: 32
+                                    Layout.preferredHeight: 28
+                                    color: "transparent"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "‹"
+                                        color: "#cba6f7"
+                                        font.pixelSize: 24
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: calendarSection.changeMonth(-1)
+                                    }
+                                }
+
+                                // Current month and year.
+                                Text {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 28
+
+                                    text: Qt.formatDate(
+                                        calendarSection.displayedMonth,
+                                        "MMMM yyyy"
+                                    )
+
+                                    color: "#cdd6f4"
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                // Next month button.
+                                Rectangle {
+                                    Layout.preferredWidth: 32
+                                    Layout.preferredHeight: 28
+                                    color: "transparent"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "›"
+                                        color: "#cba6f7"
+                                        font.pixelSize: 24
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: calendarSection.changeMonth(1)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Weekday names and calendar dates.
+                        GridLayout {
+                            width: parent.width
+                            columns: 7
+                            columnSpacing: 3
+                            rowSpacing: 4
+
+                            // Weekday names
+                            Repeater {
+                                model: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+                                delegate: Text {
+                                    required property var modelData
+
+                                    Layout.preferredWidth: 32
+                                    Layout.preferredHeight: 20
+
+                                    text: modelData
+                                    color: "#a6adc8"
+                                    font.pixelSize: 10
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+
+                            // Six rows of calendar dates.
+                            Repeater {
+                                model: 42
+
+                                delegate: Rectangle {
+                                    required property int index
+
+                                    Layout.preferredWidth: 32
+                                    Layout.preferredHeight: 20
+
+                                    radius: 7
+
+                                    readonly property var cellDate: {
+                                        const month = calendarSection.displayedMonth
+                                        const firstDay = new Date(
+                                            month.getFullYear(),
+                                            month.getMonth(),
+                                            1
+                                        )
+
+                                        // Convert Sunday-first JS weekday to Monday-first.
+                                        const offset = (firstDay.getDay() + 6) % 7
+
+                                        return new Date(
+                                            month.getFullYear(),
+                                            month.getMonth(),
+                                            1 - offset + index
+                                        )
+                                    }
+
+                                    // Check whether this date belongs to the displayed month.
+                                    readonly property bool isCurrentMonth:
+                                        cellDate.getMonth()
+                                        === calendarSection.displayedMonth.getMonth()
+
+                                    // Check whether this date is today.
+                                    readonly property bool isToday:
+                                        cellDate.getFullYear() === calendarSection.today.getFullYear()
+                                        && cellDate.getMonth() === calendarSection.today.getMonth()
+                                        && cellDate.getDate() === calendarSection.today.getDate()
+
+                                    // Displays the day number.
+                                    color: isToday
+                                        ? "#89b4fa"
+                                        : dayHoverer.hovered ? "#45475a" : "transparent"
+
+                                    // The day number text.
+                                    Text {
+                                        anchors.centerIn: parent
+
+                                        text: parent.cellDate.getDate()
+
+
+                                        color: parent.isToday
+                                            ? "#1e1e2e"
+                                            : parent.isCurrentMonth ? "#cdd6f4" : "#585b70"
+
+                                        font.pixelSize: 12
+                                        font.bold: parent.isToday
+                                        font.weight: parent.isCurrentMonth
+                                            ? Font.DemiBold : Font.Normal
+                                    }
+
+                                    // Mouse area for hover effect.
+                                    HoverHandler {
+                                        id: dayHoverer
+                                    }
+
+                                    // Animated background color when hovering.
+                                    Behavior on color {
+                                        ColorAnimation { duration: 120 }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Update the clock every second
@@ -1777,8 +2061,15 @@ ShellRoot {
                 running: true
                 repeat: true
 
-                onTriggered: clockText.text =
-                    Qt.formatDateTime(new Date(), "ddd dd MMM  hh:mm")
+                onTriggered: {
+                    const now = new Date()
+
+                    // Update the clock text in the bar.
+                    clockText.text = Qt.formatDateTime(now, "ddd dd MMM  hh:mm")
+
+                    // Update the clock text in the popup.
+                    popupTimeText.text = Qt.formatDateTime(now, "hh:mm:ss")
+                }
             }
 
             // Moonforge notification center button
@@ -1844,7 +2135,7 @@ ShellRoot {
                 }
             }
         }
-        
+
         // Centered focused window title
         Rectangle {
             id: windowTitleCapsule
@@ -1854,6 +2145,14 @@ ShellRoot {
 
             width: Math.min(420, Math.max(180, titleText.implicitWidth + 24))
             height: 30
+
+            // Smoothly resize the capsule when the title changes
+            Behavior on width {
+                NumberAnimation {
+                    duration: 120
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             radius: 8
             color: "#313244"
