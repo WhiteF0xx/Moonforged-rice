@@ -84,17 +84,31 @@ See [INSTALL.md](INSTALL.md) for installation instructions, including the instal
 
 ## 🗺️ Roadmap
 
-Planned additions and improvements, in no particular order:
+### Desktop shell
 
-- [ ] Refine the Quickshell bar layout, animations, and responsive behavior.
-- [ ] Improve theme consistency across Fuzzel, Kitty, notifications, icons, and other desktop components.
-- [x] Remove machine-specific monitor, network-interface, home-directory, and wallpaper-path assumptions where practical.
+- [x] Build and polish the Quickshell bar with launcher, workspace indicators, window title, audio/network controls, system tray, and clock.
+- [x] Add workspace switching with animated active-workspace indicators.
+- [x] Add the grouped notification center with app grouping, expand/collapse, individual and group dismissal, clear-all, and unread count.
+- [x] Add the date/time popup with a navigable monthly calendar.
+- [ ] Build a compact Settings popup with Appearance, Desktop, Notifications, Audio, System, and Display sections.
+- [ ] Add per-application volume controls.
+- [ ] Improve responsive behavior and layout across different screen sizes.
+
+### Theme and desktop integration
+
+- [ ] Improve theme consistency across Fuzzel, Kitty, notifications, icons, lock screen, and other desktop components.
+- [ ] Finish the matching Hyprlock theme integration.
 - [ ] Make wallpaper setup and startup more reliable.
+- [ ] Explore further desktop polish and optional quality-of-life widgets.
+
+### Reliability and documentation
+
+- [x] Remove machine-specific monitor, network-interface, home-directory, and wallpaper-path assumptions where practical.
 - [x] Add screenshots to the README.
 - [x] Add an installation script with package checks, protected Hyprland configuration, and backup reporting.
 - [x] Add dry-run and package-skip options for safer installation.
+- [ ] Add backup and restore support.
 - [ ] Document keybindings, customization points, and troubleshooting steps.
-- [ ] Explore further desktop polish and optional quality-of-life widgets.
 
 The roadmap is a living list; items may change as the desktop develops.
 
