@@ -10,21 +10,84 @@ import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 
 ShellRoot {
     id: shellRoot
 
     property string networkStatus: "Checking..."
     property string networkConnection: ""
+    property string currentUsername: Quickshell.env("USER") || "User"
+    property string sessionUptime: "--"
     property int unreadNotifications: 0
     property int nextNotificationId: 1
-
-    // Notification history grouped by application. Each group contains its
-    // app name/icon, expanded state, and an array of individual notifications.
     property var notificationGroups: []
 
+    // Session uptime tracker.
+    Process {
+        id: uptimeProcess
+        command: ["sh", "-c", "cut -d' ' -f1 /proc/uptime"]
 
-    // Network status tracker
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const seconds = Math.floor(parseFloat(text.trim()))
+                if (isNaN(seconds))
+                    return
+
+                const days = Math.floor(seconds / 86400)
+                const hours = Math.floor((seconds % 86400) / 3600)
+                const minutes = Math.floor((seconds % 3600) / 60)
+
+                const parts = []
+
+                if (days > 0)
+                    parts.push(`${days} ${days === 1 ? "day" : "days"}`)
+
+                if (hours > 0)
+                    parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`)
+
+                if (minutes > 0 || parts.length === 0)
+                    parts.push(`${minutes} ${minutes === 1 ? "minute" : "minutes"}`)
+
+                shellRoot.sessionUptime = parts.join(" ")
+            }
+        }
+    }
+
+    // Hyprlock process.
+    Process {
+        id: lockProcess
+        command: ["hyprlock"]
+    }
+
+    // Suspend process.
+    Process {
+        id: suspendProcess
+        command: ["systemctl", "suspend"]
+    }
+
+    // Reboot process.
+    Process {
+        id: rebootProcess
+        command: ["systemctl", "reboot"]
+    }
+
+    // Power off process.
+    Process {
+        id: shutdownProcess
+        command: ["systemctl", "poweroff"]
+    }
+
+    // Update the uptime every 10 seconds, and also immediately on startup.
+    Timer {
+        interval: 10000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: uptimeProcess.running = true
+    }
+
+    // Network status tracker.
     Process {
         id: networkStatusProcess
 
@@ -2072,6 +2135,511 @@ ShellRoot {
                 }
             }
 
+            // Moonforge settings popup
+            PopupWindow {
+                id: settingsPopup
+
+                anchor.window: barWindow
+                anchor.edges: Edges.Top | Edges.Left
+                anchor.gravity: Edges.Bottom | Edges.Right
+
+                Connections {
+                    target: settingsPopup.anchor
+
+                    function onAnchoring() {
+                        const pos = settingsButton.mapToItem(
+                            barWindow.contentItem, 0, 0
+                        )
+
+                        settingsPopup.anchor.rect.x = pos.x
+                        settingsPopup.anchor.rect.y = barWindow.height
+                        settingsPopup.anchor.rect.width = settingsButton.width
+                        settingsPopup.anchor.rect.height = settingsButton.height
+                    }
+                }
+
+                implicitWidth: 440
+                implicitHeight: 440
+
+                visible: false
+                color: "transparent"
+                grabFocus: true
+
+                // Settings content
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 14
+                    color: "#1e1e2e"
+                    border.width: 1
+                    border.color: "#45475a"
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 14
+
+                        // Profile and session section
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 14
+
+                            // User avatar.
+                            Rectangle {
+                                Layout.preferredWidth: 100
+                                Layout.preferredHeight: 100
+                                radius: 20
+                                color: "transparent"
+                                clip: true
+
+                                Image {
+                                    id: avatarImage
+                                    anchors.fill: parent
+                                    source: "file:///home/" + shellRoot.currentUsername + "/.config/moonforge/avatar.jpg"
+                                    fillMode: Image.PreserveAspectCrop
+                                    cache: false
+                                    smooth: true
+                                    visible: false
+                                }
+
+                                Rectangle {
+                                    id: avatarMask
+                                    anchors.fill: parent
+                                    radius: 20
+                                    visible: false
+                                }
+
+                                OpacityMask {
+                                    anchors.fill: parent
+                                    source: avatarImage
+                                    maskSource: avatarMask
+                                }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: 20
+                                    color: "transparent"
+                                    border.width: 2
+                                    border.color: "#45475a"
+                                }
+                            }
+
+                            // Welcome message and session information.
+                            ColumnLayout {
+                                spacing: 5
+
+                                Text {
+                                    text: shellRoot.currentUsername
+                                    color: "#cdd6f4"
+                                    font.pixelSize: 25
+                                    font.bold: true
+                                }
+
+                                RowLayout {
+                                    spacing: 6
+
+                                    Text {
+                                        text: "󰣇"
+                                        color: "#89b4fa"
+                                        font.pixelSize: 15
+                                    }
+
+                                    Text {
+                                        text: "Arch Linux · Hyprland"
+                                        color: "#a6adc8"
+                                        font.pixelSize: 11
+                                    }
+                                }
+
+                                Text {
+                                    text: "󰣇  Session: " + shellRoot.sessionUptime
+                                    color: "#a6adc8"
+                                    font.pixelSize: 15
+                                }
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+
+                            // Settings actions (e.g., logout, lock, etc.)
+                            ColumnLayout {
+                                spacing: 9
+
+                                // Power menu button.
+                                Rectangle {
+                                    Layout.preferredWidth: 42
+                                    Layout.preferredHeight: 42
+                                    radius: 21
+                                    color: "#313244"
+                                    border.width: 1
+                                    border.color: "#45475a"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "󰐥"
+                                        color: "#f38ba8"
+                                        font.pixelSize: 19
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+
+                                        onClicked: powerMenuPopup.visible = !powerMenuPopup.visible
+                                    }
+                                }
+
+                                // Lock screen button.
+                                Rectangle {
+                                    Layout.preferredWidth: 42
+                                    Layout.preferredHeight: 42
+                                    radius: 21
+                                    color: "#313244"
+                                    border.width: 1
+                                    border.color: "#45475a"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "󰌾"
+                                        color: "#89b4fa"
+                                        font.pixelSize: 19
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: lockProcess.running = true
+                                    }
+                                }
+                            }
+                        }
+
+                        // Quick Controls section
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 14
+
+                            // Section divider
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 1
+                                color: "#45475a"
+                                opacity: 0.8
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                columns: 2
+                                columnSpacing: 10
+                                rowSpacing: 9
+
+                                Repeater {
+                                    model: [
+                                        { icon: "󰖩", label: "Wi-Fi" },
+                                        { icon: "󰂯", label: "Bluetooth" },
+                                        { icon: "󰖔", label: "Night Light" },
+                                        { icon: "󰂛", label: "Do Not Disturb" },
+                                        { icon: "󰏘", label: "Appearance" },
+                                        { icon: "󰍹", label: "Desktop" },
+                                        { icon: "󰂚", label: "Notifications" },
+                                        { icon: "󰕾", label: "Audio" },
+                                        { icon: "󰍹", label: "Display" }
+                                    ]
+
+                                    delegate: Rectangle {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 44
+                                        radius: 10
+                                        color: "#313244"
+                                        border.width: 1
+                                        border.color: "#45475a"
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 10
+                                            anchors.rightMargin: 9
+                                            spacing: 8
+
+                                            Text {
+                                                text: modelData.icon
+                                                color: "#89b4fa"
+                                                font.pixelSize: 17
+                                            }
+
+                                            Text {
+                                                text: modelData.label
+                                                color: "#cdd6f4"
+                                                font.pixelSize: 12
+                                                Layout.fillWidth: true
+                                            }
+
+                                            Text {
+                                                text: "›"
+                                                color: "#a6adc8"
+                                                font.pixelSize: 20
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+
+            // Power menu popup
+            PopupWindow {
+                id: powerMenuPopup
+
+                anchor.window: barWindow
+                anchor.edges: Edges.Top | Edges.Left
+                anchor.gravity: Edges.Bottom | Edges.Right
+
+                implicitWidth: 190
+                implicitHeight: 220
+
+                visible: false
+                color: "transparent"
+                grabFocus: true
+
+                Rectangle {
+                    id: powerMenuButton
+
+                    anchors.fill: parent
+                    radius: 12
+                    color: "#1e1e2e"
+                    border.width: 1
+                    border.color: "#45475a"
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 6
+
+                        Repeater {
+                            model: [
+                                { icon: "󰌾", label: "Lock", color: "#89b4fa" },
+                                { icon: "󰒲", label: "Suspend", color: "#cba6f7" },
+                                { icon: "󰜉", label: "Reboot", color: "#89b4fa" },
+                                { icon: "󰐥", label: "Shut Down", color: "#f38ba8" }
+                            ]
+
+                            delegate: ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 5
+
+                                // Separator before Reboot
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 1
+                                    color: "#45475a"
+                                    visible: index === 2
+                                }
+
+                                Rectangle {
+                                    id: actionRow
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 42
+                                    radius: 9
+
+                                    color: actionMouse.containsMouse ? "#313244" : "transparent"
+                                    scale: actionMouse.containsMouse ? 1.015 : 1.0
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: 150 }
+                                    }
+
+                                    Behavior on scale {
+                                        NumberAnimation {
+                                            duration: 150
+                                            easing.type: Easing.OutCubic
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 12
+                                        anchors.rightMargin: 12
+                                        spacing: 12
+
+                                        Text {
+                                            text: modelData.icon
+                                            color: modelData.color
+                                            font.pixelSize: 17
+                                        }
+
+                                        Text {
+                                            text: modelData.label
+                                            color: "#cdd6f4"
+                                            font.pixelSize: 13
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: actionMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+
+                                        onClicked: {
+                                            powerMenuPopup.visible = false
+
+                                            if (modelData.label === "Lock")
+                                                lockProcess.running = true
+                                            else if (modelData.label === "Suspend") {
+                                                lockProcess.running = true
+                                                suspendProcess.running = true
+                                            }
+                                            else if (modelData.label === "Reboot") {
+                                                powerConfirmPopup.action = "reboot"
+                                                powerConfirmPopup.visible = true
+                                            }
+                                            else if (modelData.label === "Shut Down") {
+                                                powerConfirmPopup.action = "shutdown"
+                                                powerConfirmPopup.visible = true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Confirmation menu for power popup
+            PopupWindow {
+                id: powerConfirmPopup
+
+                anchor.window: barWindow
+                anchor.edges: Edges.Top | Edges.Left
+                anchor.gravity: Edges.Bottom | Edges.Right
+
+                Connections {
+                    target: powerConfirmPopup.anchor
+
+                    function onAnchoring() {
+                        const pos = powerMenuButton.mapToItem(
+                            barWindow.contentItem, 0, 0
+                        )
+
+                        powerConfirmPopup.anchor.rect.x = pos.x
+                        powerConfirmPopup.anchor.rect.y = barWindow.height
+                        powerConfirmPopup.anchor.rect.width = powerMenuButton.width
+                        powerConfirmPopup.anchor.rect.height = powerMenuButton.height
+                    }
+                }
+
+                implicitWidth: 280
+                implicitHeight: 150
+                visible: false
+                color: "transparent"
+                grabFocus: true
+
+                property string action: ""
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 14
+                    color: "#1e1e2e"
+                    border.width: 1
+                    border.color: "#45475a"
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 12
+
+                        Text {
+                            text: powerConfirmPopup.action === "reboot"
+                                ? "Restart Moonforge?"
+                                : "Shut down Moonforge?"
+                            color: "#cdd6f4"
+                            font.pixelSize: 15
+                            font.bold: true
+                        }
+
+                        Text {
+                            text: "Are you sure you want to continue?"
+                            color: "#a6adc8"
+                            font.pixelSize: 12
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Item { Layout.fillWidth: true }
+
+                            // Cancel
+                            Rectangle {
+                                Layout.preferredWidth: 82
+                                Layout.preferredHeight: 34
+                                radius: 9
+                                color: cancelMouse.containsMouse ? "#45475a" : "#313244"
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Cancel"
+                                    color: "#cdd6f4"
+                                    font.pixelSize: 12
+                                }
+
+                                MouseArea {
+                                    id: cancelMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: powerConfirmPopup.visible = false
+                                }
+                            }
+
+                            // Confirm
+                            Rectangle {
+                                Layout.preferredWidth: 94
+                                Layout.preferredHeight: 34
+                                radius: 9
+                                color: cancelMouse.containsMouse ? "#eba0ac" : "#f38ba8"
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Confirm"
+                                    color: "#1e1e2e"
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+
+                                MouseArea {
+                                    id: confirmMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+
+                                    onClicked: {
+                                        powerConfirmPopup.visible = false
+
+                                        if (powerConfirmPopup.action === "reboot")
+                                            rebootProcess.running = true
+                                        else if (powerConfirmPopup.action === "shutdown")
+                                            shutdownProcess.running = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Moonforge notification center button
             Rectangle {
                 id: notificationCenterButton
@@ -2128,6 +2696,44 @@ ShellRoot {
 
                     border.width: 1
                     border.color: "#1e1e2e"
+                }
+
+                Behavior on color {
+                    ColorAnimation { duration: 120 }
+                }
+            }
+
+            // Moonforge settings button
+            Rectangle {
+                id: settingsButton
+
+                implicitWidth: 34
+                implicitHeight: 30
+                radius: 8
+
+                color: settingsMouse.containsMouse
+                    ? "#45475a" : "#313244"
+
+                border.width: 1
+                border.color: "#45475a"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "󰒓"
+                    color: "#89b4fa"
+                    font.pixelSize: 17
+                }
+
+                MouseArea {
+                    id: settingsMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+
+                    onClicked: {
+                        notificationCenterPopup.visible = false
+                        settingsPopup.visible = !settingsPopup.visible
+                    }
                 }
 
                 Behavior on color {
