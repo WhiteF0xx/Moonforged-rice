@@ -11,6 +11,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
+import "shell/components"
 
 ShellRoot {
     id: shellRoot
@@ -21,6 +22,9 @@ ShellRoot {
     property string sessionUptime: "--"
     property int unreadNotifications: 0
     property int nextNotificationId: 1
+
+    // Notification history grouped by application. Each group contains its
+    // app name/icon, expanded state, and an array of individual notifications.
     property var notificationGroups: []
 
     // Session uptime tracker.
@@ -414,7 +418,7 @@ ShellRoot {
                                     font.bold: true
                                     Layout.fillWidth: true
                                 }
-
+                                
                                 // Notification count for the application stack
                                 Text {
                                     text: modelData.notifications.length
@@ -735,7 +739,7 @@ ShellRoot {
         id: notificationServer
 
         keepOnReload: true
-
+        
 
         onNotification: notification => {
             notification.tracked = true
@@ -887,7 +891,7 @@ ShellRoot {
             if (!networkStatusProcess.running)
                 networkStatusProcess.running = true
         }
-    }
+    }  
 
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink]
@@ -1148,7 +1152,7 @@ ShellRoot {
                         Row {
                             width: parent.width
                             spacing: 8
-
+                            
                             // Popup mute button
                             Rectangle {
                                 id: popupMuteButton
@@ -1214,7 +1218,7 @@ ShellRoot {
                                 value: Pipewire.defaultAudioSink?.audio
                                     ? Pipewire.defaultAudioSink.audio.volume
                                     : 0.0
-
+                                
                                 // Master volume slider handle
                                 handle: Rectangle {
                                     x: volumeSlider.leftPadding
@@ -1350,94 +1354,6 @@ ShellRoot {
                 }
             }
 
-            // Popup for network status and settings
-            PopupWindow {
-                id: networkPopup
-
-                anchor.window: barWindow
-                anchor.edges: Edges.Top | Edges.Left
-                anchor.gravity: Edges.Bottom | Edges.Right
-                Connections {
-                    target: networkPopup.anchor
-
-                    function onAnchoring() {
-                        const pos = networkCapsule.mapToItem(
-                            barWindow.contentItem, 0, 0
-                        )
-
-                        networkPopup.anchor.rect.x = pos.x
-                        networkPopup.anchor.rect.y = barWindow.height
-                        networkPopup.anchor.rect.width = networkCapsule.width
-                        networkPopup.anchor.rect.height = networkCapsule.height
-                    }
-                }
-
-                implicitWidth: 280
-                implicitHeight: 150
-                visible: false
-                color: "transparent"
-                grabFocus: true
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: "#1e1e2e"
-                    radius: 10
-                    border.width: 1
-                    border.color: "#45475a"
-
-                    Column {
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 10
-
-                        Text {
-                            text: "Network"
-                            color: "#cdd6f4"
-                            font.pixelSize: 15
-                            font.bold: true
-                        }
-
-                        Text {
-                            text: networkStatus === "Disconnected"
-                                ? "No active connection"
-                                : networkStatus + "\n" + networkConnection
-                            color: "#a6adc8"
-                            font.pixelSize: 12
-                        }
-
-                        Rectangle {
-                            width: parent.width
-                            height: 34
-                            radius: 7
-                            color: networkSettingsMouse.containsMouse
-                                ? "#45475a"
-                                : "#313244"
-                            border.width: 1
-                            border.color: "#45475a"
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "Open Network Settings"
-                                color: "#89b4fa"
-                                font.pixelSize: 12
-                            }
-
-                            MouseArea {
-                                id: networkSettingsMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-
-                                onClicked: {
-                                    networkPopup.visible = false
-                                    Quickshell.execDetached(["kitty", "-e", "nmtui"])
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             // System tray capsule
             Rectangle {
                 id: systemTrayCapsule
@@ -1458,7 +1374,7 @@ ShellRoot {
 
                     anchors.centerIn: parent
                     spacing: 8
-
+                    
                     // System tray icons
                     Repeater {
                         model: SystemTray.items
@@ -1473,7 +1389,7 @@ ShellRoot {
                                 id: trayMenuOpener
                                 menu: trayEntry.modelData.menu
                             }
-
+   
                             // Popup for the tray icon menu
                             PopupWindow {
                                 id: trayPopup
@@ -1725,8 +1641,8 @@ ShellRoot {
                                                             font.pixelSize: 18
                                                         }
                                                     }
-
-
+                                                 
+                                                    
                                                     MouseArea {
                                                         id: menuMouse
 
@@ -1779,7 +1695,7 @@ ShellRoot {
                                 smooth: true
                             }
 
-
+                                                        
                             MouseArea {
                                 id: trayMouse
 
@@ -1862,7 +1778,7 @@ ShellRoot {
             // Popup for date and time
             PopupWindow {
                 id: clockPopup
-
+                
                 color: "transparent"
                 anchor.window: barWindow
                 anchor.edges: Edges.Top | Edges.Left
@@ -1919,13 +1835,13 @@ ShellRoot {
                         // Current time display
                         Text {
                             id: popupTimeText
-
+                            
                             text: Qt.formatDateTime(new Date(), "hh:mm:ss")
                             color: "#cba6f7"
                             font.pixelSize: 28
                             font.bold: true
                         }
-
+                     
                         // Interactive monthly calendar
                         Column {
                             id: calendarSection
@@ -2054,8 +1970,8 @@ ShellRoot {
                                     readonly property var cellDate: {
                                         const month = calendarSection.displayedMonth
                                         const firstDay = new Date(
-                                            month.getFullYear(),
-                                            month.getMonth(),
+                                            month.getFullYear(), 
+                                            month.getMonth(), 
                                             1
                                         )
 
@@ -2070,18 +1986,18 @@ ShellRoot {
                                     }
 
                                     // Check whether this date belongs to the displayed month.
-                                    readonly property bool isCurrentMonth:
-                                        cellDate.getMonth()
+                                    readonly property bool isCurrentMonth: 
+                                        cellDate.getMonth() 
                                         === calendarSection.displayedMonth.getMonth()
 
                                     // Check whether this date is today.
-                                    readonly property bool isToday:
+                                    readonly property bool isToday: 
                                         cellDate.getFullYear() === calendarSection.today.getFullYear()
                                         && cellDate.getMonth() === calendarSection.today.getMonth()
                                         && cellDate.getDate() === calendarSection.today.getDate()
 
                                     // Displays the day number.
-                                    color: isToday
+                                    color: isToday 
                                         ? "#89b4fa"
                                         : dayHoverer.hovered ? "#45475a" : "transparent"
 
@@ -2092,8 +2008,8 @@ ShellRoot {
                                         text: parent.cellDate.getDate()
 
 
-                                        color: parent.isToday
-                                            ? "#1e1e2e"
+                                        color: parent.isToday 
+                                            ? "#1e1e2e" 
                                             : parent.isCurrentMonth ? "#cdd6f4" : "#585b70"
 
                                         font.pixelSize: 12
@@ -2185,7 +2101,7 @@ ShellRoot {
 
                             // User avatar.
                             Rectangle {
-                                Layout.preferredWidth: 100
+                                Layout.preferredWidth: 100  
                                 Layout.preferredHeight: 100
                                 radius: 20
                                 color: "transparent"
@@ -2226,7 +2142,7 @@ ShellRoot {
                             // Welcome message and session information.
                             ColumnLayout {
                                 spacing: 5
-
+            
                                 Text {
                                     text: shellRoot.currentUsername
                                     color: "#cdd6f4"
@@ -2251,7 +2167,7 @@ ShellRoot {
                                 }
 
                                 Text {
-                                    text: "󰣇  Session: " + shellRoot.sessionUptime
+                                    text: "󰣇  uptime: " + shellRoot.sessionUptime
                                     color: "#a6adc8"
                                     font.pixelSize: 15
                                 }
@@ -2313,7 +2229,7 @@ ShellRoot {
                                 }
                             }
                         }
-
+                        
                         // Quick Controls section
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -2379,11 +2295,30 @@ ShellRoot {
                                                 font.pixelSize: 20
                                             }
                                         }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+
+                                            onClicked: {
+                                                if (modelData.label === "Wi-Fi") {
+                                                    const pos = parent.mapToItem(settingsPopup.contentItem, 0, 0)
+
+                                                    networkPopup.anchor.rect = Qt.rect(
+                                                    pos.x + 180 - parent.width / 2,
+                                                    pos.y,
+                                                    parent.width,
+                                                    parent.height
+                                                )
+
+                                                    networkPopup.visible = !networkPopup.visible
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-
                     }
                 }
             }
@@ -2574,11 +2509,11 @@ ShellRoot {
                             Item { Layout.fillWidth: true }
 
                             // Cancel
-                            Rectangle {
+                            Rectangle { 
                                 Layout.preferredWidth: 82
                                 Layout.preferredHeight: 34
                                 radius: 9
-                                color: cancelMouse.containsMouse ? "#45475a" : "#313244"
+                                color: confirmMouse.containsMouse ? "#eba0ac" : "#f38ba8"
 
                                 Behavior on color {
                                     ColorAnimation { duration: 150 }
@@ -2601,7 +2536,7 @@ ShellRoot {
                             }
 
                             // Confirm
-                            Rectangle {
+                            Rectangle { 
                                 Layout.preferredWidth: 94
                                 Layout.preferredHeight: 34
                                 radius: 9
@@ -2638,6 +2573,15 @@ ShellRoot {
                         }
                     }
                 }
+            }
+
+            // Network popup
+            NetworkPopup {
+                id: networkPopup
+                anchor.window: settingsPopup
+                anchor.edges: Edges.Bottom
+                anchor.gravity: Edges.Bottom
+
             }
 
             // Moonforge notification center button
@@ -2741,7 +2685,7 @@ ShellRoot {
                 }
             }
         }
-
+        
         // Centered focused window title
         Rectangle {
             id: windowTitleCapsule
@@ -2754,7 +2698,7 @@ ShellRoot {
 
             // Smoothly resize the capsule when the title changes
             Behavior on width {
-                NumberAnimation {
+                NumberAnimation { 
                     duration: 120
                     easing.type: Easing.OutCubic
                 }
