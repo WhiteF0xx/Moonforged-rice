@@ -115,6 +115,7 @@ for file in \
   ~/.config/quickshell/shell.qml \
   ~/.config/quickshell/shell/components/NetworkPopup.qml \
   ~/.config/fuzzel/fuzzel.ini \
+  ~/.config/kitty/moonforge.conf \
   ~/.config/kitty/kitty.conf
 do
   if [ -f "$file" ]; then
