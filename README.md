@@ -52,7 +52,8 @@ Moonforge uses a moonlit, Catppuccin Mocha-inspired palette, with soft blue and 
 - **Hyprland** — window layout settings and keyboard bindings.
 - **Quickshell bar** — launcher, workspace buttons, active-window title, system tray, and clock.
 - **Audio controls** — volume indicator, wheel-based volume adjustment, and a custom volume popup.
-- **Network controls** — connection status and a popup for network actions.
+- **Network controls** — connection status, Wi-Fi scanning, connecting to secured and open networks, saved-network recognition, and Ethernet status.
+- **Settings popup and power menu** — quick access to desktop controls and power actions.
 - **Custom tray menus** — themed popup menus positioned relative to their tray icons.
 - **Fuzzel** — themed application launcher, bound to `Super + Space`.
 - **Kitty** — Moonforge terminal color theme.
@@ -90,7 +91,8 @@ See [INSTALL.md](INSTALL.md) for installation instructions, including the instal
 - [x] Add workspace switching with animated active-workspace indicators.
 - [x] Add the grouped notification center with app grouping, expand/collapse, individual and group dismissal, clear-all, and unread count.
 - [x] Add the date/time popup with a navigable monthly calendar.
-- [ ] Build a compact Settings popup with Appearance, Desktop, Notifications, Audio, System, and Display sections.
+- [x] Add the Settings popup and power menu.
+- [ ] Expand Settings with Appearance, Desktop, Notifications, Audio, System, and Display sections.
 - [ ] Add per-application volume controls.
 - [ ] Improve responsive behavior and layout across different screen sizes.
 

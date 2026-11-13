@@ -66,7 +66,6 @@ PACKAGES=(
     wireplumber
     hyprpolkitagent
     papirus-icon-theme
-    awww
 )
 
 info()  { printf '\n[Moonforge] %s\n' "$*"; }
@@ -212,6 +211,7 @@ else
 fi
 
 install_file "$REPO_DIR/quickshell/shell/shell.qml" "$CONFIG_DIR/quickshell/shell.qml"
+install_file "$REPO_DIR/quickshell/shell/components/NetworkPopup.qml" "$CONFIG_DIR/quickshell/shell/components/NetworkPopup.qml"
 install_file "$REPO_DIR/fuzzel/moonforge.ini" "$CONFIG_DIR/fuzzel/fuzzel.ini"
 install_file "$REPO_DIR/wallpapers/moonforge_wallpaper.jpg" "$CONFIG_DIR/moonforge/wallpaper.jpg"
 install_file "$REPO_DIR/kitty/moonforge.conf" "$CONFIG_DIR/kitty/moonforge.conf"

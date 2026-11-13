@@ -11,6 +11,8 @@ All notable Moonforge changes are documented here.
 - `--no-packages` option for systems where dependencies are already installed.
 - `--dry-run` option to preview file operations without changing files or system state.
 - Installation summary listing installed, updated, skipped, and backed-up files.
+- Settings popup and power menu.
+- Wi-Fi network popup with network scanning, connection support, saved-network recognition, and Ethernet status.
 
 ### Safety
 - Existing Hyprland configuration is protected and never overwritten by the installer.

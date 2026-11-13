@@ -113,6 +113,7 @@ stamp=$(date +%Y%m%d-%H%M%S)
 for file in \
   ~/.config/hypr/hyprland.conf \
   ~/.config/quickshell/shell.qml \
+  ~/.config/quickshell/shell/components/NetworkPopup.qml \
   ~/.config/fuzzel/fuzzel.ini \
   ~/.config/kitty/kitty.conf
 do
@@ -129,7 +130,7 @@ This backs up those individual files only. If you have additional Hyprland, Quic
 Create the target directories:
 
 ```bash
-mkdir -p ~/.config/hypr ~/.config/quickshell ~/.config/fuzzel ~/.config/moonforge ~/.config/kitty
+mkdir -p ~/.config/hypr ~/.config/quickshell ~/.config/quickshell/shell/components ~/.config/fuzzel ~/.config/moonforge ~/.config/kitty
 ```
 
 Copy the project files:
@@ -137,6 +138,7 @@ Copy the project files:
 ```bash
 cp ~/Projects/moonforged-rice/hypr/hyprland.conf ~/.config/hypr/hyprland.conf
 cp ~/Projects/moonforged-rice/quickshell/shell/shell.qml ~/.config/quickshell/shell.qml
+cp ~/Projects/moonforged-rice/quickshell/shell/components/NetworkPopup.qml ~/.config/quickshell/shell/components/NetworkPopup.qml
 cp ~/Projects/moonforged-rice/fuzzel/moonforge.ini ~/.config/fuzzel/fuzzel.ini
 cp ~/Projects/moonforged-rice/wallpapers/moonforge_wallpaper.jpg ~/.config/moonforge/wallpaper.jpg
 cp ~/Projects/moonforged-rice/kitty/moonforge.conf ~/.config/kitty/moonforge.conf
