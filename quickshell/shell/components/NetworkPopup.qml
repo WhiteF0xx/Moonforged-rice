@@ -15,6 +15,9 @@ PopupWindow {
     property string connectionStatus: ""
     property string connectedSsid: ""
     property var savedNetworks: []
+    property string selectedConnectionUuid: ""
+    property bool selectedNetworkConnected: false
+    property string networkAction: ""
     property string ethernetStatus: "Checking..."
 
     // Check if WiFi is is enabled.
@@ -131,14 +134,14 @@ PopupWindow {
         }
     }
 
-    // Connected to Wi-Fi network.
+    // Detect the currently connected Wi-Fi network.
     Process {
         id: wifiConnectedProcess
+
         command: [
             "nmcli", "-t",
-            "-f", "NAME,TYPE",
-            "connection", "show",
-            "--active"
+            "-f", "IN-USE,SSID",
+            "device", "wifi", "list"
         ]
 
         stdout: StdioCollector {
@@ -146,10 +149,8 @@ PopupWindow {
                 let connected = ""
 
                 for (const line of text.trim().split("\n")) {
-                    const fields = line.split(":")
-
-                    if (fields.length >= 2 && fields[1] === "802-11-wireless") {
-                        connected = fields[0]
+                    if (line.startsWith("*:")) {
+                        connected = line.substring(2)
                         break
                     }
                 }
@@ -165,26 +166,136 @@ PopupWindow {
 
         command: [
             "nmcli", "-t",
-            "-f", "NAME,TYPE",
+            "-f", "NAME,UUID,TYPE",
             "connection", "show"
         ]
 
         stdout: StdioCollector {
             onStreamFinished: {
+                const profiles = text.trim().split("\n")
                 const networks = []
 
-                for (const line of text.trim().split("\n")) {
+                for (const line of profiles) {
                     if (!line.trim())
                         continue
 
                     const fields = line.split(":")
 
-                    if (fields.length >= 2 && fields[1] === "802-11-wireless")
-                        networks.push(fields[0])
+                    if (fields.length < 3 || fields[2] !== "802-11-wireless")
+                        continue
+
+                    networks.push({
+                        name: fields[0],
+                        uuid: fields[1],
+                        ssid: ""
+                    })
                 }
 
                 networkPopup.savedNetworks = networks
-                console.log("Saved Wi-Fi networks:", JSON.stringify(networkPopup.savedNetworks))
+                savedNetworkSsidProcess.startFetching()
+            }
+        }
+    }
+
+    // Retrieve the actual SSID for each saved Wi-Fi profile.
+    Process {
+        id: savedNetworkSsidProcess
+
+        property int currentIndex: 0
+
+        function fetchNext() {
+            if (currentIndex >= networkPopup.savedNetworks.length)
+                return
+
+            command = [
+                "nmcli", "-g",
+                "802-11-wireless.ssid",
+                "connection", "show", "uuid",
+                networkPopup.savedNetworks[currentIndex].uuid
+            ]
+
+            running = true
+        }
+
+        stdout: StdioCollector {
+            id: savedNetworkSsidOutput
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const networks = networkPopup.savedNetworks.slice()
+
+            if (exitCode === 0 && currentIndex < networks.length) {
+                networks[currentIndex].ssid = savedNetworkSsidOutput.text.trim()
+                networkPopup.savedNetworks = networks
+            }
+
+            currentIndex++
+            fetchNext()
+        }
+
+        function startFetching() {
+            currentIndex = 0
+            fetchNext()
+        }
+    }
+
+    // Connect, disconnect, or forget a saved Wi-Fi profile.
+    Process {
+        id: networkActionProcess
+
+        command: {
+            if (networkPopup.networkAction === "connect") {
+                return [
+                    "nmcli", "--wait", "30",
+                    "connection", "up", "uuid",
+                    networkPopup.selectedConnectionUuid
+                ]
+            }
+
+            if (networkPopup.networkAction === "disconnect") {
+                return [
+                    "nmcli",
+                    "connection", "down", "uuid",
+                    networkPopup.selectedConnectionUuid
+                ]
+            }
+
+            if (networkPopup.networkAction === "forget") {
+                return [
+                    "nmcli",
+                    "connection", "delete", "uuid",
+                    networkPopup.selectedConnectionUuid
+                ]
+            }
+
+            return []
+        }
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                console.log("Wi-Fi action:", text.trim())
+            }
+        }
+
+        stderr: StdioCollector {
+            onStreamFinished: {
+                networkPopup.connectionStatus = text.trim()
+            }
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode === 0) {
+                networkPopup.connectionStatus = "Action completed"
+                networkPopup.networkActionsVisible = false
+
+                wifiConnectedProcess.running = true
+                savedNetworksProcess.running = true
+                wifiScanProcess.running = true
+            } else {
+                console.log(
+                    "Wi-Fi action failed:",
+                    networkPopup.connectionStatus
+                )
             }
         }
     }
@@ -311,7 +422,8 @@ PopupWindow {
                                 required property var modelData
 
                                 width: ListView.view.width
-                                height: 38
+                                height: networkPopup.selectedSsid === modelData.ssid
+                                    && networkPopup.networkActionsVisible ? 76 : 38
                                 radius: 6
                                 color: networkPopup.selectedSsid === modelData.ssid
                                     ? "#45475a" : "#313244"
@@ -357,8 +469,76 @@ PopupWindow {
                                     }
                                 }
 
+                                RowLayout {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    anchors.leftMargin: 8
+                                    anchors.rightMargin: 8
+                                    anchors.bottomMargin: 5
+                                    spacing: 6
+
+                                    visible: networkPopup.selectedSsid === modelData.ssid
+                                            && networkPopup.networkActionsVisible
+
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        height: 25
+                                        radius: 5
+                                        color: "#45475a"
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: networkPopup.selectedNetworkConnected
+                                                ? "Disconnect" : "Connect"
+                                            color: "#cdd6f4"
+                                            font.pixelSize: 10
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+
+                                            onClicked: {
+                                                networkPopup.networkAction =
+                                                    networkPopup.selectedNetworkConnected
+                                                    ? "disconnect" : "connect"
+
+                                                networkActionProcess.running = true
+                                            }
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        height: 25
+                                        radius: 5
+                                        color: "#585064"
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "Forget"
+                                            color: "#f38ba8"
+                                            font.pixelSize: 10
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+
+                                            onClicked: {
+                                                networkPopup.networkAction = "forget"
+                                                networkActionProcess.running = true
+                                            }
+                                        }
+                                    }
+                                }
+
                                 MouseArea {
-                                    anchors.fill: parent
+                                    anchors.top: parent.top
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    height: 38
                                     cursorShape: Qt.PointingHandCursor
 
                                     onClicked: {
@@ -368,11 +548,20 @@ PopupWindow {
                                             modelData.ssid === networkPopup.connectedSsid
 
                                         const isSaved =
-                                            networkPopup.savedNetworks.indexOf(modelData.ssid) !== -1
+                                            networkPopup.savedNetworks.some(
+                                                network => network.ssid === modelData.ssid
+                                            )
 
-                                        if (isConnected || isSaved) {
+                                        const savedNetwork = networkPopup.savedNetworks.find(
+                                            network => network.ssid === modelData.ssid
+                                        )
+
+                                        if (savedNetwork) {
+                                            networkPopup.selectedConnectionUuid = savedNetwork.uuid
+                                            networkPopup.selectedNetworkConnected = isConnected
                                             networkPopup.networkActionsVisible = true
                                         } else {
+                                            networkPopup.selectedConnectionUuid = ""
                                             networkPopup.networkActionsVisible = false
                                             networkPopup.passwordText = ""
 
@@ -381,7 +570,7 @@ PopupWindow {
                                             } else {
                                                 networkPopup.passwordDialogVisible = true
                                             }
-                                        }
+}
                                     }
                                 }
                             }
