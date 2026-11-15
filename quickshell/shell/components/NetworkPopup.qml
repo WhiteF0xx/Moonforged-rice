@@ -97,12 +97,38 @@ PopupWindow {
     Process {
         id: wifiConnectProcess
 
+        stdinEnabled: true
+
         command: networkPopup.passwordText.length > 0
             ? [
-                "nmcli", "--wait", "30",
-                "device", "wifi", "connect",
-                networkPopup.selectedSsid,
-                "password", networkPopup.passwordText
+                "sh", "-c",
+                `
+                umask 077
+
+                password_file=$(mktemp) || exit 1
+                trap 'rm -f "$password_file"' EXIT
+
+                IFS= read -r password || exit 1
+
+                printf '%s\n' \
+                    "802-11-wireless-security.psk:$password" \
+                    > "$password_file" || exit 1
+
+                unset password
+
+                nmcli connection add \
+                    type wifi \
+                    con-name "$1" \
+                    ifname "*" \
+                    ssid "$1" \
+                    -- wifi-sec.key-mgmt wpa-psk || exit 1
+
+                nmcli --wait 30 connection up \
+                    id "$1" \
+                    passwd-file "$password_file"
+                `,
+                "moonforge-wifi",
+                networkPopup.selectedSsid
             ]
             : [
                 "nmcli", "--wait", "30",
@@ -110,9 +136,15 @@ PopupWindow {
                 networkPopup.selectedSsid
             ]
 
+        onStarted: {
+            if (networkPopup.passwordText.length > 0) {
+                write(networkPopup.passwordText + "\n")
+                networkPopup.passwordText = ""
+            }
+        }
+
         stdout: StdioCollector {
             onStreamFinished: {
-                console.log("Wi-Fi:", text.trim())
             }
         }
 
@@ -128,8 +160,10 @@ PopupWindow {
                 networkPopup.passwordDialogVisible = false
                 networkPopup.passwordText = ""
                 wifiScanProcess.running = true
+                savedNetworksProcess.running = true
+                wifiConnectedProcess.running = true
             } else {
-                console.log("Wi-Fi connection failed:", networkPopup.connectionStatus)
+                networkPopup.passwordText = ""
             }
         }
     }
@@ -204,8 +238,9 @@ PopupWindow {
         property int currentIndex: 0
 
         function fetchNext() {
-            if (currentIndex >= networkPopup.savedNetworks.length)
+            if (currentIndex >= networkPopup.savedNetworks.length) {
                 return
+            }
 
             command = [
                 "nmcli", "-g",
@@ -273,7 +308,6 @@ PopupWindow {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                console.log("Wi-Fi action:", text.trim())
             }
         }
 
@@ -292,10 +326,6 @@ PopupWindow {
                 savedNetworksProcess.running = true
                 wifiScanProcess.running = true
             } else {
-                console.log(
-                    "Wi-Fi action failed:",
-                    networkPopup.connectionStatus
-                )
             }
         }
     }
@@ -324,7 +354,7 @@ PopupWindow {
     }
 
     implicitWidth: 360
-    implicitHeight: 390
+    implicitHeight: 490
 
     visible: false
     color: "transparent"
@@ -367,7 +397,7 @@ PopupWindow {
             // Wi-Fi section
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 145
+                Layout.preferredHeight: 250
                 radius: 10
                 color: "#313244"
                 border.width: 1
@@ -542,6 +572,16 @@ PopupWindow {
                                     cursorShape: Qt.PointingHandCursor
 
                                     onClicked: {
+                                        const alreadySelected =
+                                            networkPopup.selectedSsid === modelData.ssid
+                                            && networkPopup.networkActionsVisible
+
+                                        if (alreadySelected) {
+                                            networkPopup.networkActionsVisible = false
+                                            networkPopup.selectedSsid = ""
+                                            return
+                                        }
+
                                         networkPopup.selectedSsid = modelData.ssid
 
                                         const isConnected =
@@ -560,6 +600,11 @@ PopupWindow {
                                             networkPopup.selectedConnectionUuid = savedNetwork.uuid
                                             networkPopup.selectedNetworkConnected = isConnected
                                             networkPopup.networkActionsVisible = true
+                                        } else if (!modelData.security || modelData.security === "--") {
+                                            networkPopup.selectedConnectionUuid = ""
+                                            networkPopup.networkActionsVisible = false
+                                            networkPopup.passwordText = ""
+                                            wifiConnectProcess.running = true
                                         } else {
                                             networkPopup.selectedConnectionUuid = ""
                                             networkPopup.networkActionsVisible = false
@@ -570,7 +615,7 @@ PopupWindow {
                                             } else {
                                                 networkPopup.passwordDialogVisible = true
                                             }
-}
+                                        }
                                     }
                                 }
                             }
