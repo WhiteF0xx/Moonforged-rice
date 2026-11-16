@@ -1,0 +1,13 @@
+[Unit]
+Description=Moonforge Bluetooth Agent
+After=bluetooth.service
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python /home/WhiteFox/Projects/moonforged-rice/quickshell/shell/components/BluetoothAgent.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
