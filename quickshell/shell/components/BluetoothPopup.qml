@@ -15,6 +15,43 @@ PopupWindow {
     property bool bluetoothScanning: false
     property var discoveredBluetoothDevices: []
 
+
+    // Distinct what the device is.
+    function bluetoothDeviceIcon(device) {
+        const classMatch = device.deviceClass.match(/0x([0-9A-Fa-f]+)/)
+
+        if (classMatch) {
+            const classValue = parseInt(classMatch[1], 16)
+            const minorClass = (classValue >> 2) & 0x3F
+
+            switch (minorClass) {
+            case 0x05:
+                return "󰓃" // Speaker
+
+            case 0x06:
+                return "󰋋" // Headphones
+
+            case 0x01:
+                return "󰋎" // Earbuds / headset
+            }
+        }
+
+        // Fall back to BlueZ Icon if Class is unavailable or unrecognized.
+        switch (device.icon) {
+        case "audio-card":
+            return "󰓃"
+
+        case "audio-headphones":
+            return "󰋋"
+
+        case "audio-headset":
+            return "󰋎"
+
+        default:
+            return "󰂯" // Bluetooth
+        }
+    }
+
     // Check Bluetooth adapter status.
     Process {
         id: bluetoothStatusProcess
@@ -50,19 +87,29 @@ PopupWindow {
     // Retrieve paired Bluetooth devices.
     Process {
         id: bluetoothDevicesProcess
-        command: ["bluetoothctl", "devices", "Paired"]
+        command: [
+            "sh", "-c",
+            'bluetoothctl devices Paired | while read -r _ mac name; do ' +
+            'info=$(bluetoothctl info "$mac"); ' +
+            'icon=$(printf "%s\\n" "$info" | awk -F": " \'/^[[:space:]]*Icon:/ {print $2; exit}\'); ' +
+            'class=$(printf "%s\\n" "$info" | awk -F": " \'/^[[:space:]]*Class:/ {print $2; exit}\'); ' +
+            'printf "%s|%s|%s|%s\\n" "$mac" "$name" "$icon" "$class"; ' +
+            'done'
+        ]
 
         stdout: StdioCollector {
             onStreamFinished: {
                 const devices = []
 
                 for (const line of text.trim().split("\n")) {
-                    const match = line.match(/^Device\s+([0-9A-F:]+)\s+(.+)$/)
+                    const parts = line.split("|")
 
-                    if (match) {
+                    if (parts.length >= 4 && parts[0]) {
                         devices.push({
-                            mac: match[1],
-                            name: match[2]
+                            mac: parts[0],
+                            name: parts[1],
+                            icon: parts[2],
+                            deviceClass: parts[3]
                         })
                     }
                 }
@@ -140,23 +187,33 @@ PopupWindow {
     // Retrieve discovered devices.
     Process {
         id: bluetoothDiscoveredProcess
-        command: ["bluetoothctl", "devices"]
+        command: [
+            "sh", "-c",
+            'bluetoothctl devices | while read -r _ mac name; do ' +
+            'info=$(bluetoothctl info "$mac"); ' +
+            'icon=$(printf "%s\\n" "$info" | awk -F": " \'/^[[:space:]]*Icon:/ {print $2; exit}\'); ' +
+            'class=$(printf "%s\\n" "$info" | awk -F": " \'/^[[:space:]]*Class:/ {print $2; exit}\'); ' +
+            'printf "%s|%s|%s|%s\\n" "$mac" "$name" "$icon" "$class"; ' +
+            'done'
+        ]
 
         stdout: StdioCollector {
             onStreamFinished: {
                 const devices = []
 
                 for (const line of text.trim().split("\n")) {
-                    const match = line.match(/^Device\s+([0-9A-F:]+)\s+(.+)$/)
+                    const parts = line.split("|")
 
-                    if (match) {
+                    if (parts.length >= 4 && parts[0]) {
                         const alreadyPaired = bluetoothPopup.bluetoothDevices
-                            .some(device => device.mac === match[1])
+                            .some(device => device.mac === parts[0])
 
                         if (!alreadyPaired) {
                             devices.push({
-                                mac: match[1],
-                                name: match[2]
+                                mac: parts[0],
+                                name: parts[1],
+                                icon: parts[2],
+                                deviceClass: parts[3]
                             })
                         }
                     }
@@ -199,7 +256,7 @@ PopupWindow {
     }
 
     implicitWidth: 360
-    implicitHeight: 480
+    implicitHeight: 580
 
     visible: false
     color: "transparent"
@@ -312,112 +369,114 @@ PopupWindow {
                 }
             }
 
-            // Paired devices
-            ColumnLayout {
+            // Paired devices.
+            ScrollView {
                 Layout.fillWidth: true
-                spacing: 8
+                Layout.preferredHeight: 160
+                clip: true
 
-                Text {
-                    text: "Paired devices"
-                    color: "#cdd6f4"
-                    font.pixelSize: 13
-                    font.bold: true
-                }
+                ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
-                Repeater {
-                    model: bluetoothPopup.bluetoothDevices
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 8
 
-                    delegate: Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 48
-                        radius: 9
-                        color: "#313244"
-                        border.width: 1
-                        border.color: "#45475a"
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            spacing: 10
+                    Repeater {
+                        model: bluetoothPopup.bluetoothDevices
 
-                            Text {
-                                text: "󰂯"
-                                color: "#89b4fa"
-                                font.pixelSize: 18
-                            }
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 48
+                            radius: 9
+                            color: "#313244"
+                            border.width: 1
+                            border.color: "#45475a"
 
-                            Text {
-                                text: modelData.name
-                                color: "#cdd6f4"
-                                font.pixelSize: 12
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: 0
-                                elide: Text.ElideRight
-                            }
-
-                            // Connect / disconnect function.
-                            Rectangle {
-                                Layout.preferredWidth: 88
-                                Layout.preferredHeight: 28
-                                radius: 7
-
-                                color: bluetoothPopup.connectedBluetoothDevices.includes(modelData.mac)
-                                    ? "#45475a" : "#313244"
-
-                                border.width: 1
-                                border.color: "#585b70"
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                spacing: 10
 
                                 Text {
-                                    anchors.centerIn: parent
-
-                                    text: bluetoothPopup.connectedBluetoothDevices.includes(modelData.mac)
-                                        ? "Disconnect" : "Connect"
-
+                                    text: bluetoothPopup.bluetoothDeviceIcon(modelData)
                                     color: "#89b4fa"
-                                    font.pixelSize: 10
-                                    font.bold: true
+                                    font.pixelSize: 18
                                 }
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
+                                Text {
+                                    text: modelData.name
+                                    color: "#cdd6f4"
+                                    font.pixelSize: 12
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    elide: Text.ElideRight
+                                }
 
-                                    onClicked: {
-                                        bluetoothDeviceActionProcess.action =
-                                            bluetoothPopup.connectedBluetoothDevices.includes(modelData.mac)
-                                            ? "disconnect" : "connect"
+                                // Connect / disconnect function.
+                                Rectangle {
+                                    Layout.preferredWidth: 88
+                                    Layout.preferredHeight: 28
+                                    radius: 7
 
-                                        bluetoothDeviceActionProcess.deviceMac = modelData.mac
-                                        bluetoothDeviceActionProcess.running = true
+                                    color: bluetoothPopup.connectedBluetoothDevices.includes(modelData.mac)
+                                        ? "#45475a" : "#313244"
+
+                                    border.width: 1
+                                    border.color: "#585b70"
+
+                                    Text {
+                                        anchors.centerIn: parent
+
+                                        text: bluetoothPopup.connectedBluetoothDevices.includes(modelData.mac)
+                                            ? "Disconnect" : "Connect"
+
+                                        color: "#89b4fa"
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+
+                                        onClicked: {
+                                            bluetoothDeviceActionProcess.action =
+                                                bluetoothPopup.connectedBluetoothDevices.includes(modelData.mac)
+                                                ? "disconnect" : "connect"
+
+                                            bluetoothDeviceActionProcess.deviceMac = modelData.mac
+                                            bluetoothDeviceActionProcess.running = true
+                                        }
                                     }
                                 }
-                            }
 
-                            // Forget function.
-                            Rectangle {
-                                Layout.preferredWidth: 58
-                                Layout.preferredHeight: 28
-                                radius: 7
-                                color: "#313244"
-                                border.width: 1
-                                border.color: "#585b70"
+                                // Forget function.
+                                Rectangle {
+                                    Layout.preferredWidth: 58
+                                    Layout.preferredHeight: 28
+                                    radius: 7
+                                    color: "#313244"
+                                    border.width: 1
+                                    border.color: "#585b70"
 
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "Forget"
-                                    color: "#f38ba8"
-                                    font.pixelSize: 10
-                                    font.bold: true
-                                }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "Forget"
+                                        color: "#f38ba8"
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                    }
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
 
-                                    onClicked: {
-                                        bluetoothForgetProcess.deviceMac = modelData.mac
-                                        bluetoothForgetProcess.running = true
+                                        onClicked: {
+                                            bluetoothForgetProcess.deviceMac = modelData.mac
+                                            bluetoothForgetProcess.running = true
+                                        }
                                     }
                                 }
                             }
@@ -470,7 +529,7 @@ PopupWindow {
             // Nearby devices
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 140
+                Layout.preferredHeight: 190
                 spacing: 8
 
                 Text {
@@ -483,7 +542,7 @@ PopupWindow {
                 // Available devices section.
                 ScrollView {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 120
+                    Layout.preferredHeight: 165
                     clip: true
 
                     ScrollBar.vertical.policy: ScrollBar.AsNeeded
@@ -510,7 +569,7 @@ PopupWindow {
                                     spacing: 8
 
                                     Text {
-                                        text: "󰂯"
+                                        text: bluetoothPopup.bluetoothDeviceIcon(modelData)
                                         color: "#89b4fa"
                                         font.pixelSize: 17
                                     }
@@ -554,15 +613,15 @@ PopupWindow {
                             }
                         }
                     }
-                }
 
-                Text {
-                    visible: !bluetoothPopup.bluetoothScanning
-                        && bluetoothPopup.discoveredBluetoothDevices.length === 0
+                    Text {
+                        visible: !bluetoothPopup.bluetoothScanning
+                            && bluetoothPopup.discoveredBluetoothDevices.length === 0
 
-                    text: "No new devices found"
-                    color: "#a6adc8"
-                    font.pixelSize: 11
+                        text: "No new devices found"
+                        color: "#a6adc8"
+                        font.pixelSize: 11
+                    }
                 }
             }
         }
